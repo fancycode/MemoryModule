@@ -203,7 +203,7 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 			}
 
 			// advance to next relocation block
-			(char *)relocation += relocation->SizeOfBlock;
+			relocation = (PIMAGE_BASE_RELOCATION)(((DWORD)relocation) + relocation->SizeOfBlock);
 		}
 	}
 }
