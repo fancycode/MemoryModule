@@ -109,6 +109,8 @@ about symbols, etc::
         WORD    Characteristics;
     } IMAGE_FILE_HEADER, *PIMAGE_FILE_HEADER;
 
+.. _OptionalHeader:
+
 The `OptionalHeader` contains informations about the *logical* format of the library, 
 including required OS version, memory requirements and entry points::
 
@@ -155,6 +157,8 @@ including required OS version, memory requirements and entry points::
         IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
     } IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
 
+.. _DataDirectory:
+
 The `DataDirectory` contains 16 (`IMAGE_NUMBEROF_DIRECTORY_ENTRIES`) entries
 defining the logical components of the library:
 
@@ -200,7 +204,7 @@ the exports entry is required.
 Section header
 ---------------
 
-The section header is stored after the `OptionalHeader` structure in the PE
+The section header is stored after the OptionalHeader_ structure in the PE
 header.  Microsoft provides the macro `IMAGE_FIRST_SECTION` to get the start
 address based on the PE header.
 
@@ -273,7 +277,7 @@ All memory required for the library must be reserved / allocated using
 This is required to restrict access to the memory, like blocking write access
 to the code or constant data.
 
-The `OptionalHeader` structure defines the size of the required memory block
+The OptionalHeader_ structure defines the size of the required memory block
 for the library.  It must be reserved at the address specified by `ImageBase`
 if possible::
 
@@ -302,7 +306,7 @@ Before copying the data, the memory block must get committed::
 
 Sections without data in the file (like data sections for the used variables)
 have a `SizeOfRawData` of `0`, so you can use the `SizeOfInitializedData`
-or `SizeOfUninitializedData` of the `OptionalHeader`.  Which one must get
+or `SizeOfUninitializedData` of the OptionalHeader_.  Which one must get
 choosen depending on the bit flags `IMAGE_SCN_CNT_INITIALIZED_DATA` and
 `IMAGE_SCN_CNT_UNINITIALIZED_DATA` that may be set in the section`s
 characteristics.
@@ -312,13 +316,14 @@ Base relocation
 ----------------
 
 All memory addresses in the code / data sections of a library are stored relative
-to the address defined by `ImageBase` in the `OptionalHeader`.  If the library
+to the address defined by `ImageBase` in the OptionalHeader_.  If the library
 can't be imported to this memory address, the references must get adjusted
 => *relocated*.  The file format helps for this by storing informations about
 all these references in the base relocation table, which can be found in the
-directory entry 5 of the `DataDirectory` in the `OptionalHeader`.
+directory entry 5 of the DataDirectory_ in the OptionalHeader_.
 
 This table consists of a series of this structure
+
 ::
 
     typedef struct _IMAGE_BASE_RELOCATION {
@@ -342,7 +347,7 @@ IMAGE_REL_BASED_HIGHLOW
 Resolve imports
 ----------------
 
-The directory entry 0 of the `DataDirectory` in the `OptionalHeader` specifies
+The directory entry 1 of the DataDirectory_ in the OptionalHeader_ specifies
 a list of libraries to import symbols from.  Each entry in this list is defined
 as follows::
 
@@ -452,7 +457,32 @@ Afterwards we can use the exported functions as with any normal library.
 Exported functions
 ===================
 
-TODO
+If you want to access the functions that are exported by the library, you need to find the entry
+point to a symbol, i.e. the name of the function to call.
+
+The directory entry 0 of the DataDirectory_ in the OptionalHeader_ contains informations about
+the exported functions. It's defined as follows::
+
+    typedef struct _IMAGE_EXPORT_DIRECTORY {
+        DWORD   Characteristics;
+        DWORD   TimeDateStamp;
+        WORD    MajorVersion;
+        WORD    MinorVersion;
+        DWORD   Name;
+        DWORD   Base;
+        DWORD   NumberOfFunctions;
+        DWORD   NumberOfNames;
+        DWORD   AddressOfFunctions;     // RVA from base of image
+        DWORD   AddressOfNames;         // RVA from base of image
+        DWORD   AddressOfNameOrdinals;  // RVA from base of image
+    } IMAGE_EXPORT_DIRECTORY, *PIMAGE_EXPORT_DIRECTORY;
+
+First thing to do, is to map the name of the function to the ordinal number of the exported
+symbol. Therefore, just walk the arrays defined by `AddressOfNames` and `AddressOfNameOrdinals`
+parallel until you found the required name.
+
+Now you can use the ordinal number to read the address by evaluating the n-th element of the
+`AddressOfFunctions` array.
 
 
 Freeing the library
@@ -478,7 +508,7 @@ The interface is very similar to the standard methods for loading of libraries::
 
     typedef void *HMEMORYMODULE;
     
-    HMEMORYMODULE MemoryLoadLibrary(const void *, const size_t);
+    HMEMORYMODULE MemoryLoadLibrary(const void *);
     FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
     void MemoryFreeLibrary(HMEMORYMODULE);
 
@@ -486,8 +516,14 @@ The interface is very similar to the standard methods for loading of libraries::
 Downloads
 ----------
 
-Currently, MemoryModule is only available from my SVN server at
+The latest development release can always be grabbed from my development SVN-Server at
 https://leviathan.joachim-bauch.de/cgi-bin/viewcvs.cgi/MemoryModule/trunk/?root=misc
+
+Please note that it's located in my room so it doesn't run 24/7 and is often offline during
+nights or on weekends.  If you encounter problems connecting, please try again some other
+time of day.
+
+All released versions can be downloaded from the list below.
 
 
 Known issues
