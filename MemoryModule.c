@@ -273,10 +273,10 @@ BuildImportTable(PMEMORYMODULE module)
 
 HMEMORYMODULE MemoryLoadLibrary(const void *data)
 {
-	PMEMORYMODULE result=NULL;
+	PMEMORYMODULE result;
 	PIMAGE_DOS_HEADER dos_header;
 	PIMAGE_NT_HEADERS old_header;
-	unsigned char *code=NULL, *headers;
+	unsigned char *code, *headers;
 	DWORD locationDelta;
 	DllEntryProc DllEntry;
 	BOOL successfull;
