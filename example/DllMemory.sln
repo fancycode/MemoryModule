@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SampleDLL", "SampleDLL\SampleDLL.vcproj", "{B293DAC4-5BCA-4413-9B7B-92CB56459875}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D0226BB5-3A02-4C91-893A-F36567AED5C5} = {D0226BB5-3A02-4C91-893A-F36567AED5C5}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DllLoader", "DllLoader\DllLoader.vcproj", "{D0226BB5-3A02-4C91-893A-F36567AED5C5}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{B293DAC4-5BCA-4413-9B7B-92CB56459875}.Debug.ActiveCfg = Debug|Win32
+		{B293DAC4-5BCA-4413-9B7B-92CB56459875}.Debug.Build.0 = Debug|Win32
+		{B293DAC4-5BCA-4413-9B7B-92CB56459875}.Release.ActiveCfg = Release|Win32
+		{B293DAC4-5BCA-4413-9B7B-92CB56459875}.Release.Build.0 = Release|Win32
+		{D0226BB5-3A02-4C91-893A-F36567AED5C5}.Debug.ActiveCfg = Debug|Win32
+		{D0226BB5-3A02-4C91-893A-F36567AED5C5}.Debug.Build.0 = Debug|Win32
+		{D0226BB5-3A02-4C91-893A-F36567AED5C5}.Release.ActiveCfg = Release|Win32
+		{D0226BB5-3A02-4C91-893A-F36567AED5C5}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
