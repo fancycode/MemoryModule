@@ -32,7 +32,7 @@ typedef void *HMEMORYMODULE;
 extern "C" {
 #endif
 
-HMEMORYMODULE MemoryLoadLibrary(const void *, const size_t);
+HMEMORYMODULE MemoryLoadLibrary(const void *);
 
 FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
 

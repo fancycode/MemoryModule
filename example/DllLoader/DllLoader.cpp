@@ -44,7 +44,7 @@ void LoadFromMemory(void)
 	fread(data, 1, size, fp);
 	fclose(fp);
 
-	module = MemoryLoadLibrary(data, size);
+	module = MemoryLoadLibrary(data);
 	if (module == NULL)
 	{
 		printf("Can't load library from memory.\n");

@@ -73,10 +73,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 		{
 			// section doesn't contain data in the dll itself, but may define
 			// uninitialized data
-			int initialized = section->Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA;
-			int uninitialized = section->Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA;
-
-			size = initialized ? old_headers->OptionalHeader.SizeOfInitializedData : old_headers->OptionalHeader.SizeOfUninitializedData;
+			size = old_headers->OptionalHeader.SectionAlignment;
 			if (size > 0)
 			{
 				dest = (unsigned char *)VirtualAlloc(codeBase + section->VirtualAddress,
@@ -85,8 +82,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 					PAGE_READWRITE);
 
 				section->Misc.PhysicalAddress = (DWORD)dest;
-				if (initialized)
-					memset(dest, 0, size);
+				memset(dest, 0, size);
 			}
 
 			// section is empty
@@ -222,7 +218,7 @@ BuildImportTable(PMEMORYMODULE module)
 	if (directory->Size > 0)
 	{
 		PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR)(codeBase + directory->VirtualAddress);
-		for (; importDesc->Characteristics != 0; importDesc++)
+		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++)
 		{
 			DWORD *thunkRef, *funcRef;
 			HMODULE handle = LoadLibrary((LPCSTR)(codeBase + importDesc->Name));
@@ -243,8 +239,15 @@ BuildImportTable(PMEMORYMODULE module)
 			}
 
 			module->modules[module->numModules++] = handle;
-			thunkRef = (DWORD *)(codeBase + importDesc->OriginalFirstThunk);
-			funcRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+			if (importDesc->OriginalFirstThunk)
+			{
+				thunkRef = (DWORD *)(codeBase + importDesc->OriginalFirstThunk);
+				funcRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+			} else {
+				// no hint table
+				thunkRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+				funcRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+			}
 			for (; *thunkRef; thunkRef++, funcRef++)
 			{
 				PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME)(codeBase + *thunkRef);
@@ -264,7 +267,7 @@ BuildImportTable(PMEMORYMODULE module)
 	return result;
 }
 
-HMEMORYMODULE MemoryLoadLibrary(const void *data, const size_t size)
+HMEMORYMODULE MemoryLoadLibrary(const void *data)
 {
 	PMEMORYMODULE result=NULL;
 	PIMAGE_DOS_HEADER dos_header;
@@ -333,8 +336,8 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data, const size_t size)
 		PAGE_READWRITE);
 	
 	// copy PE header to code
-	memcpy(headers, old_header, old_header->OptionalHeader.SizeOfHeaders);
-	result->headers = (PIMAGE_NT_HEADERS)headers;
+	memcpy(headers, dos_header, dos_header->e_lfanew + old_header->OptionalHeader.SizeOfHeaders);
+	result->headers = (PIMAGE_NT_HEADERS)&((const unsigned char *)(headers))[dos_header->e_lfanew];
 
 	// update position
 	result->headers->OptionalHeader.ImageBase = (DWORD)code;
