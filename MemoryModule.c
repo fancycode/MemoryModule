@@ -24,8 +24,6 @@
 // disable warnings about pointer <-> DWORD conversions
 #pragma warning( disable : 4311 4312 )
 
-#define DEBUG_OUTPUT 1
-
 #include <Windows.h>
 #include <winnt.h>
 #ifdef DEBUG_OUTPUT
@@ -300,6 +298,13 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data, const size_t size)
 		MEM_RESERVE,
 		PAGE_READWRITE);
 
+    if (code == NULL)
+        // try to allocate memory at arbitrary position
+        code = (unsigned char *)VirtualAlloc(NULL,
+            old_header->OptionalHeader.SizeOfImage,
+            MEM_RESERVE,
+            PAGE_READWRITE);
+    
 	if (code == NULL)
 	{
 #if DEBUG_OUTPUT
