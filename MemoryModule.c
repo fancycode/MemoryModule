@@ -277,6 +277,7 @@ GetPEB(void)
 	}
 }
 
+// XXX: this should use the hash table to speed up finding modules
 static HMODULE
 FindLibraryInPEB(const unsigned char *name, int incLoadCount)
 {
@@ -306,7 +307,7 @@ FindLibraryInPEB(const unsigned char *name, int incLoadCount)
 				// we use this module, so increate the load count
 				loaderModule->LoadCount++;
 			
-			goto exit;
+			break;
 		}
 
 		// advance to next module
@@ -314,22 +315,35 @@ FindLibraryInPEB(const unsigned char *name, int incLoadCount)
 		if (loaderModule->BaseAddress == NULL || loaderModule == (PLDR_MODULE)(loaderData->InLoadOrderModuleList.Flink))
 			// we traversed through the complete list
 			// and didn't find the library
-			goto exit;
+			break;
 	}
 
-exit:
 	free(longName);
-
 	return result;
 }
 
 // Append a loader module to the end of the loader data list of the PEB
-#define AppendToChain(module, list, chain) { \
-	(module)->##chain##.Flink = (list)->##chain##.Flink; \
+#define AppendToChain(module, list, chain, offset) { \
+	(module)->##chain##.Flink = &(list)->##chain##; \
 	(module)->##chain##.Blink = (list)->##chain##.Blink; \
-	((PLDR_MODULE)((list)->##chain##.Blink))->##chain##.Flink = &(module)->##chain##; \
+	((PLDR_MODULE)(((char *)(list)->##chain##.Blink) - offset))->##chain##.Flink = &(module)->##chain##; \
 	(list)->##chain##.Blink = &(module)->##chain##; \
 };
+
+#define GET_FIRST_CHAR(module) ((_toupper((module)->BaseDllName.Buffer[0]) - 1) & 0x1f)
+
+static PLIST_ENTRY
+GetPEBHashTable(void)
+{
+	PPEB_LDR_DATA loaderData;
+	PLDR_MODULE loaderModule;
+	unsigned char firstChar;
+
+	loaderData = GetPEB()->LoaderData;
+	loaderModule = (PLDR_MODULE)(loaderData->InLoadOrderModuleList.Flink);
+	firstChar = GET_FIRST_CHAR(loaderModule);
+	return (PLIST_ENTRY)(((char *)loaderModule->HashTableEntry.Blink) - (firstChar * sizeof(LIST_ENTRY)));
+}
 
 static PLDR_MODULE
 InsertModuleInPEB(HMODULE module, unsigned char *name, unsigned char *baseName, DWORD locationDelta)
@@ -338,6 +352,8 @@ InsertModuleInPEB(HMODULE module, unsigned char *name, unsigned char *baseName, 
 	PPEB_LDR_DATA loaderData = GetPEB()->LoaderData;
 	DWORD entry = GET_NT_HEADER(module)->OptionalHeader.AddressOfEntryPoint;
 	size_t i;
+	unsigned char firstChar;
+	PLIST_ENTRY hashTable = GetPEBHashTable();
 
 	loaderModule = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(LDR_MODULE));
 	if (loaderModule == NULL)
@@ -377,15 +393,21 @@ InsertModuleInPEB(HMODULE module, unsigned char *name, unsigned char *baseName, 
 		loaderModule->Flags |= IMAGE_NOT_AT_BASE;
 	loaderModule->TimeDateStamp = GET_NT_HEADER(module)->FileHeader.TimeDateStamp;
 
-	// XXX: do we need more set the hash table?
-	//loaderModule->HashTableEntry.Flink = &loaderModule->HashTableEntry;
-	//loaderModule->HashTableEntry.Blink = &loaderModule->HashTableEntry;
+	// add module to lookup table to speed up detection of already loaded libraries
+	firstChar = GET_FIRST_CHAR(loaderModule);
+	loaderModule->HashTableEntry.Flink = &hashTable[firstChar];
+	loaderModule->HashTableEntry.Blink = &hashTable[firstChar];
+	hashTable[firstChar].Blink = (PLIST_ENTRY)loaderModule;
+	hashTable[firstChar].Flink = (PLIST_ENTRY)loaderModule;
 
-	AppendToChain(loaderModule, loaderData, InLoadOrderModuleList);
-	AppendToChain(loaderModule, loaderData, InInitializationOrderModuleList);
-
+	AppendToChain(loaderModule, loaderData, InLoadOrderModuleList, 0);
+	if (loaderModule->EntryPoint == 0) 
+		loaderModule->InInitializationOrderModuleList.Blink = loaderModule->InInitializationOrderModuleList.Flink = 0;
+	else
+		AppendToChain(loaderModule, loaderData, InInitializationOrderModuleList, sizeof(LIST_ENTRY)*2);
+	
 	// XXX: insert at the correct position in the chain
-	AppendToChain(loaderModule, loaderData, InMemoryOrderModuleList);
+	AppendToChain(loaderModule, loaderData, InMemoryOrderModuleList, sizeof(LIST_ENTRY));
 	return loaderModule;
 }
 
