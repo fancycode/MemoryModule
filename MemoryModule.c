@@ -460,7 +460,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 
 		if (module->codeBase != NULL)
 			// release memory of library
-			VirtualFree(module->codeBase, module->headers->OptionalHeader.SizeOfImage, MEM_RELEASE);
+			VirtualFree(module->codeBase, 0, MEM_RELEASE);
 
 		HeapFree(GetProcessHeap(), 0, module);
 	}
