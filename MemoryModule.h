@@ -26,17 +26,16 @@
 
 #include <Windows.h>
 
-typedef void *HMEMORYMODULE;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-HMEMORYMODULE MemoryLoadLibrary(const void *);
+HMODULE MemoryLoadLibrary(const void *, unsigned char *);
 
-FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
-
-void MemoryFreeLibrary(HMEMORYMODULE);
+// backwards compatibility
+#define HMEMORYMODULE HMODULE
+#define MemoryGetProcAddress GetProcAddress
+#define MemoryFreeLibrary FreeLibrary
 
 #ifdef __cplusplus
 }
