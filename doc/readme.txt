@@ -525,6 +525,9 @@ time of day.
 
 All released versions can be downloaded from the list below.
 
+Version 0.0.1 (first public release)
+    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.1.zip 
+
 
 Known issues
 -------------
