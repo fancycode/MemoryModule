@@ -539,7 +539,7 @@ Known issues
 License
 --------
 
-The MemoryModule library is released under the Lesser General Public License (LGPL).
+The MemoryModule library is released under the Mozilla Public License (MPL).
 
 It is provided as-is without ANY warranty.  You may use it at your own risk.
 
@@ -548,4 +548,4 @@ Copyright
 ==========
 
 The MemoryModule library and this tutorial are
-Copyright (c) 2004 by Joachim Bauch.
+Copyright (c) 2004-2005 by Joachim Bauch.
