@@ -46,6 +46,7 @@ typedef struct {
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 
 #define GET_HEADER_DICTIONARY(module, idx)	&(module)->headers->OptionalHeader.DataDirectory[idx]
+#define CALCULATE_ADDRESS(base, offset) (((DWORD)(base)) + (offset))
 
 #ifdef DEBUG_OUTPUT
 static void
@@ -79,7 +80,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 			size = old_headers->OptionalHeader.SectionAlignment;
 			if (size > 0)
 			{
-				dest = (unsigned char *)VirtualAlloc(codeBase + section->VirtualAddress,
+				dest = (unsigned char *)VirtualAlloc((unsigned char *)CALCULATE_ADDRESS(codeBase, section->VirtualAddress),
 					size,
 					MEM_COMMIT,
 					PAGE_READWRITE);
@@ -93,11 +94,11 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 		}
 
 		// commit memory block and copy data from dll
-		dest = (unsigned char *)VirtualAlloc(codeBase + section->VirtualAddress,
+		dest = (unsigned char *)VirtualAlloc((unsigned char *)CALCULATE_ADDRESS(codeBase, section->VirtualAddress),
 							section->SizeOfRawData,
 							MEM_COMMIT,
 							PAGE_READWRITE);
-		memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
+		memcpy(dest, (unsigned char *)CALCULATE_ADDRESS(data, section->PointerToRawData), section->SizeOfRawData);
 		section->Misc.PhysicalAddress = (DWORD)dest;
 	}
 }
@@ -172,10 +173,10 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 	PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_BASERELOC);
 	if (directory->Size > 0)
 	{
-		PIMAGE_BASE_RELOCATION relocation = (PIMAGE_BASE_RELOCATION)(codeBase + directory->VirtualAddress);
+		PIMAGE_BASE_RELOCATION relocation = (PIMAGE_BASE_RELOCATION)CALCULATE_ADDRESS(codeBase, directory->VirtualAddress);
 		for (; relocation->VirtualAddress > 0; )
 		{
-			unsigned char *dest = (unsigned char *)(codeBase + relocation->VirtualAddress);
+			unsigned char *dest = (unsigned char *)CALCULATE_ADDRESS(codeBase, relocation->VirtualAddress);
 			unsigned short *relInfo = (unsigned short *)((unsigned char *)relocation + IMAGE_SIZEOF_BASE_RELOCATION);
 			for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++)
 			{
@@ -195,7 +196,7 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 
 				case IMAGE_REL_BASED_HIGHLOW:
 					// change complete 32 bit address
-					patchAddrHL = (DWORD *)(dest + offset);
+					patchAddrHL = (DWORD *)CALCULATE_ADDRESS(dest, offset);
 					*patchAddrHL += delta;
 					break;
 
@@ -206,7 +207,7 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 			}
 
 			// advance to next relocation block
-			relocation = (PIMAGE_BASE_RELOCATION)(((DWORD)relocation) + relocation->SizeOfBlock);
+			relocation = (PIMAGE_BASE_RELOCATION)CALCULATE_ADDRESS(relocation, relocation->SizeOfBlock);
 		}
 	}
 }
@@ -220,11 +221,11 @@ BuildImportTable(PMEMORYMODULE module)
 	PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_IMPORT);
 	if (directory->Size > 0)
 	{
-		PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR)(codeBase + directory->VirtualAddress);
+		PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR)CALCULATE_ADDRESS(codeBase, directory->VirtualAddress);
 		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++)
 		{
 			DWORD *thunkRef, *funcRef;
-			HMODULE handle = LoadLibrary((LPCSTR)(codeBase + importDesc->Name));
+			HMODULE handle = LoadLibrary((LPCSTR)CALCULATE_ADDRESS(codeBase, importDesc->Name));
 			if (handle == INVALID_HANDLE_VALUE)
 			{
 #if DEBUG_OUTPUT
@@ -244,19 +245,19 @@ BuildImportTable(PMEMORYMODULE module)
 			module->modules[module->numModules++] = handle;
 			if (importDesc->OriginalFirstThunk)
 			{
-				thunkRef = (DWORD *)(codeBase + importDesc->OriginalFirstThunk);
-				funcRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+				thunkRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->OriginalFirstThunk);
+				funcRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
 			} else {
 				// no hint table
-				thunkRef = (DWORD *)(codeBase + importDesc->FirstThunk);
-				funcRef = (DWORD *)(codeBase + importDesc->FirstThunk);
+				thunkRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
+				funcRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
 			}
 			for (; *thunkRef; thunkRef++, funcRef++)
 			{
 				if IMAGE_SNAP_BY_ORDINAL(*thunkRef)
 					*funcRef = (DWORD)GetProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef));
 				else {
-					PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME)(codeBase + *thunkRef);
+					PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME)CALCULATE_ADDRESS(codeBase, *thunkRef);
 					*funcRef = (DWORD)GetProcAddress(handle, (LPCSTR)&thunkData->Name);
 				}
 				if (*funcRef == 0)
@@ -368,7 +369,7 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	// get entry point of loaded library
 	if (result->headers->OptionalHeader.AddressOfEntryPoint != 0)
 	{
-		DllEntry = (DllEntryProc)(code + result->headers->OptionalHeader.AddressOfEntryPoint);
+		DllEntry = (DllEntryProc)CALCULATE_ADDRESS(code, result->headers->OptionalHeader.AddressOfEntryPoint);
 		if (DllEntry == 0)
 		{
 #if DEBUG_OUTPUT
@@ -409,16 +410,16 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
 		// no export table found
 		return NULL;
 
-	exports = (PIMAGE_EXPORT_DIRECTORY)(codeBase + directory->VirtualAddress);
+	exports = (PIMAGE_EXPORT_DIRECTORY)CALCULATE_ADDRESS(codeBase, directory->VirtualAddress);
 	if (exports->NumberOfNames == 0 || exports->NumberOfFunctions == 0)
 		// DLL doesn't export anything
 		return NULL;
 
 	// search function name in list of exported names
-	nameRef = (DWORD *)(codeBase + exports->AddressOfNames);
-	ordinal = (WORD *)(codeBase + exports->AddressOfNameOrdinals);
+	nameRef = (DWORD *)CALCULATE_ADDRESS(codeBase, exports->AddressOfNames);
+	ordinal = (WORD *)CALCULATE_ADDRESS(codeBase, exports->AddressOfNameOrdinals);
 	for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++)
-		if (stricmp(name, (const char *)(codeBase + *nameRef)) == 0)
+		if (stricmp(name, (const char *)CALCULATE_ADDRESS(codeBase, *nameRef)) == 0)
 		{
 			idx = *ordinal;
 			break;
@@ -433,7 +434,7 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
 		return NULL;
 
 	// AddressOfFunctions contains the RVAs to the "real" functions
-	return (FARPROC)(codeBase + *(DWORD *)(codeBase + exports->AddressOfFunctions + (idx*4)));
+	return (FARPROC)CALCULATE_ADDRESS(codeBase, *(DWORD *)CALCULATE_ADDRESS(codeBase, exports->AddressOfFunctions + (idx*4)));
 }
 
 void MemoryFreeLibrary(HMEMORYMODULE mod)
@@ -446,7 +447,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 		if (module->initialized != 0)
 		{
 			// notify library about detaching from process
-			DllEntryProc DllEntry = (DllEntryProc)(module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
+			DllEntryProc DllEntry = (DllEntryProc)CALCULATE_ADDRESS(module->codeBase, module->headers->OptionalHeader.AddressOfEntryPoint);
 			(*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
 			module->initialized = 0;
 		}
