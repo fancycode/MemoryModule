@@ -1,5 +1,8 @@
-:Author: Joachim Bauch
-:Contact: mail@joachim-bauch.de
+:author:    Joachim Bauch
+:contact:   mail@joachim-bauch.de
+:copyright: `Creative Commons License (by-sa)`__
+
+__ http://creativecommons.org/licenses/by-sa/2.5/
 
 
 .. contents::
@@ -516,17 +519,16 @@ The interface is very similar to the standard methods for loading of libraries::
 Downloads
 ----------
 
-The latest development release can always be grabbed from my development SVN-Server at
-https://leviathan.joachim-bauch.de/cgi-bin/viewcvs.cgi/MemoryModule/trunk/?root=misc
-
-Please note that it's located in my room so it doesn't run 24/7 and is often offline during
-nights or on weekends.  If you encounter problems connecting, please try again some other
-time of day.
+The latest development release can always be grabbed from my development subversion server at
+http://fancycode.com/viewcvs/MemoryModule/trunk/
 
 All released versions can be downloaded from the list below.
 
+Version 0.0.2 (MPL release)
+    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.2.zip
+
 Version 0.0.1 (first public release)
-    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.1.zip 
+    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.1.zip
 
 
 Known issues
@@ -539,7 +541,8 @@ Known issues
 License
 --------
 
-The MemoryModule library is released under the Mozilla Public License (MPL).
+Since version 0.0.2, the MemoryModule library is released under the Mozilla Public License (MPL).
+Version 0.0.1 has been released unter the Lesser General Public License (LGPL).
 
 It is provided as-is without ANY warranty.  You may use it at your own risk.
 
@@ -548,4 +551,4 @@ Copyright
 ==========
 
 The MemoryModule library and this tutorial are
-Copyright (c) 2004-2005 by Joachim Bauch.
+Copyright (c) 2004-2006 by Joachim Bauch.
