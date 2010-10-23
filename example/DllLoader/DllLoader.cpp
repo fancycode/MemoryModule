@@ -8,7 +8,7 @@
 
 typedef int (*addNumberProc)(int, int);
 
-#define DLL_FILE "..\\..\\SampleDLL\\Debug\\SampleDLL.dll"
+#define DLL_FILE "..\\SampleDLL\\SampleDLL.dll"
 
 void LoadFromFile(void)
 {
