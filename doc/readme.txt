@@ -519,16 +519,8 @@ The interface is very similar to the standard methods for loading of libraries::
 Downloads
 ----------
 
-The latest development release can always be grabbed from my development subversion server at
-http://fancycode.com/viewcvs/MemoryModule/trunk/
-
-All released versions can be downloaded from the list below.
-
-Version 0.0.2 (MPL release)
-    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.2.zip
-
-Version 0.0.1 (first public release)
-    http://www.joachim-bauch.de/tutorials/downloads/MemoryModule-0.0.1.zip
+The latest development release can always be grabbed from Github at
+http://github.com/fancycode/MemoryModule/
 
 
 Known issues
@@ -551,4 +543,4 @@ Copyright
 ==========
 
 The MemoryModule library and this tutorial are
-Copyright (c) 2004-2006 by Joachim Bauch.
+Copyright (c) 2004-2010 by Joachim Bauch.
