@@ -129,6 +129,11 @@ FinalizeSections(PMEMORYMODULE module)
 {
 	int i;
 	PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
+#ifdef _WIN64
+	POINTER_TYPE imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
+#else
+	#define imageOffset 0
+#endif
 	
 	// loop through all sections and change access flags
 	for (i=0; i<module->headers->FileHeader.NumberOfSections; i++, section++)
@@ -141,7 +146,7 @@ FinalizeSections(PMEMORYMODULE module)
 		if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)
 		{
 			// section is not needed any more and can safely be freed
-			VirtualFree((LPVOID)(POINTER_TYPE)section->Misc.PhysicalAddress, section->SizeOfRawData, MEM_DECOMMIT);
+			VirtualFree((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, MEM_DECOMMIT);
 			continue;
 		}
 
@@ -163,13 +168,16 @@ FinalizeSections(PMEMORYMODULE module)
 		if (size > 0)
 		{
 			// change memory access flags
-			if (VirtualProtect((LPVOID)(POINTER_TYPE)section->Misc.PhysicalAddress, section->SizeOfRawData, protect, &oldProtect) == 0)
+			if (VirtualProtect((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, protect, &oldProtect) == 0)
 #ifdef DEBUG_OUTPUT
 				OutputLastError("Error protecting memory page")
 #endif
 			;
 		}
 	}
+#ifndef _WIN64
+#undef imageOffset
+#endif
 }
 
 static void
