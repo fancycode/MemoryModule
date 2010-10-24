@@ -162,7 +162,7 @@ FinalizeSections(PMEMORYMODULE module)
 
 		if (size > 0) {
 			// change memory access flags
-			if (VirtualProtect((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, protect, &oldProtect) == 0)
+			if (VirtualProtect((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), size, protect, &oldProtect) == 0)
 #ifdef DEBUG_OUTPUT
 				OutputLastError("Error protecting memory page")
 #endif
