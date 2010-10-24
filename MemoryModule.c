@@ -24,8 +24,16 @@
  *
  */
 
+#ifndef __GNUC__
 // disable warnings about pointer <-> DWORD conversions
 #pragma warning( disable : 4311 4312 )
+#endif
+
+#ifdef _WIN64
+#define POINTER_TYPE ULONGLONG
+#else
+#define POINTER_TYPE DWORD
+#endif
 
 #include <Windows.h>
 #include <winnt.h>
@@ -46,7 +54,7 @@ typedef struct {
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 
 #define GET_HEADER_DICTIONARY(module, idx)	&(module)->headers->OptionalHeader.DataDirectory[idx]
-#define CALCULATE_ADDRESS(base, offset) (((DWORD)(base)) + (offset))
+#define CALCULATE_ADDRESS(base, offset) (((unsigned char *)(base)) + (offset))
 
 #ifdef DEBUG_OUTPUT
 static void
@@ -85,7 +93,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 					MEM_COMMIT,
 					PAGE_READWRITE);
 
-				section->Misc.PhysicalAddress = (DWORD)dest;
+				section->Misc.PhysicalAddress = (POINTER_TYPE)dest;
 				memset(dest, 0, size);
 			}
 
@@ -99,7 +107,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
 							MEM_COMMIT,
 							PAGE_READWRITE);
 		memcpy(dest, (unsigned char *)CALCULATE_ADDRESS(data, section->PointerToRawData), section->SizeOfRawData);
-		section->Misc.PhysicalAddress = (DWORD)dest;
+		section->Misc.PhysicalAddress = (POINTER_TYPE)dest;
 	}
 }
 
@@ -133,7 +141,7 @@ FinalizeSections(PMEMORYMODULE module)
 		if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)
 		{
 			// section is not needed any more and can safely be freed
-			VirtualFree((LPVOID)section->Misc.PhysicalAddress, section->SizeOfRawData, MEM_DECOMMIT);
+			VirtualFree((LPVOID)(POINTER_TYPE)section->Misc.PhysicalAddress, section->SizeOfRawData, MEM_DECOMMIT);
 			continue;
 		}
 
@@ -155,7 +163,7 @@ FinalizeSections(PMEMORYMODULE module)
 		if (size > 0)
 		{
 			// change memory access flags
-			if (VirtualProtect((LPVOID)section->Misc.PhysicalAddress, section->SizeOfRawData, protect, &oldProtect) == 0)
+			if (VirtualProtect((LPVOID)(POINTER_TYPE)section->Misc.PhysicalAddress, section->SizeOfRawData, protect, &oldProtect) == 0)
 #ifdef DEBUG_OUTPUT
 				OutputLastError("Error protecting memory page")
 #endif
@@ -165,7 +173,7 @@ FinalizeSections(PMEMORYMODULE module)
 }
 
 static void
-PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
+PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
 {
 	DWORD i;
 	unsigned char *codeBase = module->codeBase;
@@ -181,6 +189,9 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 			for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++)
 			{
 				DWORD *patchAddrHL;
+#ifdef _WIN64
+				ULONGLONG *patchAddr64;
+#endif
 				int type, offset;
 
 				// the upper 4 bits define the type of relocation
@@ -199,6 +210,13 @@ PerformBaseRelocation(PMEMORYMODULE module, DWORD delta)
 					patchAddrHL = (DWORD *)CALCULATE_ADDRESS(dest, offset);
 					*patchAddrHL += delta;
 					break;
+				
+#ifdef _WIN64
+				case IMAGE_REL_BASED_DIR64:
+					patchAddr64 = (ULONGLONG *)CALCULATE_ADDRESS(dest, offset);
+					*patchAddr64 += delta;
+					break;
+#endif
 
 				default:
 					//printf("Unknown relocation: %d\n", type);
@@ -224,7 +242,8 @@ BuildImportTable(PMEMORYMODULE module)
 		PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR)CALCULATE_ADDRESS(codeBase, directory->VirtualAddress);
 		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++)
 		{
-			DWORD *thunkRef, *funcRef;
+			POINTER_TYPE *thunkRef;
+			FARPROC *funcRef;
 			HMODULE handle = LoadLibrary((LPCSTR)CALCULATE_ADDRESS(codeBase, importDesc->Name));
 			if (handle == INVALID_HANDLE_VALUE)
 			{
@@ -245,20 +264,20 @@ BuildImportTable(PMEMORYMODULE module)
 			module->modules[module->numModules++] = handle;
 			if (importDesc->OriginalFirstThunk)
 			{
-				thunkRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->OriginalFirstThunk);
-				funcRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
+				thunkRef = (POINTER_TYPE *)CALCULATE_ADDRESS(codeBase, importDesc->OriginalFirstThunk);
+				funcRef = (FARPROC *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
 			} else {
 				// no hint table
-				thunkRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
-				funcRef = (DWORD *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
+				thunkRef = (POINTER_TYPE *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
+				funcRef = (FARPROC *)CALCULATE_ADDRESS(codeBase, importDesc->FirstThunk);
 			}
 			for (; *thunkRef; thunkRef++, funcRef++)
 			{
 				if IMAGE_SNAP_BY_ORDINAL(*thunkRef)
-					*funcRef = (DWORD)GetProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef));
+					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef));
 				else {
 					PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME)CALCULATE_ADDRESS(codeBase, *thunkRef);
-					*funcRef = (DWORD)GetProcAddress(handle, (LPCSTR)&thunkData->Name);
+					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)&thunkData->Name);
 				}
 				if (*funcRef == 0)
 				{
@@ -281,7 +300,7 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	PIMAGE_DOS_HEADER dos_header;
 	PIMAGE_NT_HEADERS old_header;
 	unsigned char *code, *headers;
-	DWORD locationDelta;
+	SIZE_T locationDelta;
 	DllEntryProc DllEntry;
 	BOOL successfull;
 
@@ -348,13 +367,13 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	result->headers = (PIMAGE_NT_HEADERS)&((const unsigned char *)(headers))[dos_header->e_lfanew];
 
 	// update position
-	result->headers->OptionalHeader.ImageBase = (DWORD)code;
+	result->headers->OptionalHeader.ImageBase = (POINTER_TYPE)code;
 
 	// copy sections from DLL file block to new memory location
 	CopySections(data, old_header, result);
 
 	// adjust base address of imported data
-	locationDelta = (DWORD)(code - old_header->OptionalHeader.ImageBase);
+	locationDelta = (SIZE_T)(code - old_header->OptionalHeader.ImageBase);
 	if (locationDelta != 0)
 		PerformBaseRelocation(result, locationDelta);
 
