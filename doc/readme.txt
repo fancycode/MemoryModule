@@ -543,4 +543,4 @@ Copyright
 ==========
 
 The MemoryModule library and this tutorial are
-Copyright (c) 2004-2010 by Joachim Bauch.
+Copyright (c) 2004-2011 by Joachim Bauch.
