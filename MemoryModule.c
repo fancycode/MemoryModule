@@ -247,7 +247,7 @@ BuildImportTable(PMEMORYMODULE module)
 			POINTER_TYPE *thunkRef;
 			FARPROC *funcRef;
 			HMODULE handle = LoadLibrary((LPCSTR) (codeBase + importDesc->Name));
-			if (handle == INVALID_HANDLE_VALUE) {
+			if (handle == NULL) {
 #if DEBUG_OUTPUT
 				OutputLastError("Can't load library");
 #endif
