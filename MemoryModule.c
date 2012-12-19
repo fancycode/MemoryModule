@@ -421,7 +421,7 @@ error:
 	return NULL;
 }
 
-FARPROC WINAPI MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
+FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 {
 	unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
 	int idx=-1;

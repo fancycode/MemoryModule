@@ -42,7 +42,7 @@ extern "C" {
 HMEMORYMODULE MemoryLoadLibrary(const void *);
 HMEMORYMODULE MemoryLoadLibraryEx(const void *, LOADLIBRARYAFUNC, GETPROCADDRFUNC);
 
-FARPROC WINAPI MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
+FARPROC MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
 
 void MemoryFreeLibrary(HMEMORYMODULE);
 void MemoryFreeLibraryEx(HMEMORYMODULE, FREELIBRARYFUNC);
