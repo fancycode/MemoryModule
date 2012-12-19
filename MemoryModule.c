@@ -235,7 +235,7 @@ PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
 }
 
 static int
-BuildImportTable(PMEMORYMODULE module)
+BuildImportTable(PMEMORYMODULE module, LOADLIBRARYAFUNC loadLibFunc, GETPROCADDRFUNC procFunc)
 {
 	int result=1;
 	unsigned char *codeBase = module->codeBase;
@@ -246,7 +246,8 @@ BuildImportTable(PMEMORYMODULE module)
 		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
 			POINTER_TYPE *thunkRef;
 			FARPROC *funcRef;
-			HMODULE handle = LoadLibrary((LPCSTR) (codeBase + importDesc->Name));
+			LPCSTR libName = (LPCSTR)(codeBase + importDesc->Name);
+			HMODULE handle = loadLibFunc(libName);
 			if (handle == NULL) {
 #if DEBUG_OUTPUT
 				OutputLastError("Can't load library");
@@ -271,12 +272,16 @@ BuildImportTable(PMEMORYMODULE module)
 				funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
 			}
 			for (; *thunkRef; thunkRef++, funcRef++) {
+				
+				LPCSTR funcName;
 				if (IMAGE_SNAP_BY_ORDINAL(*thunkRef)) {
-					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef));
+					funcName = (LPCSTR)IMAGE_ORDINAL(*thunkRef);
 				} else {
 					PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME) (codeBase + (*thunkRef));
-					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)&thunkData->Name);
+					funcName = (LPCSTR)&thunkData->Name;
 				}
+				
+				*funcRef = (FARPROC)procFunc(handle, funcName);
 				if (*funcRef == 0) {
 					result = 0;
 					break;
@@ -293,6 +298,11 @@ BuildImportTable(PMEMORYMODULE module)
 }
 
 HMEMORYMODULE MemoryLoadLibrary(const void *data)
+{
+	return MemoryLoadLibraryEx(data, LoadLibraryA, GetProcAddress);
+}
+
+HMEMORYMODULE MemoryLoadLibraryEx(const void *data, LOADLIBRARYAFUNC loadLibFunc, GETPROCADDRFUNC procFunc)
 {
 	PMEMORYMODULE result;
 	PIMAGE_DOS_HEADER dos_header;
@@ -374,7 +384,7 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	}
 
 	// load required dlls and adjust function table of imports
-	if (!BuildImportTable(result)) {
+	if (!BuildImportTable(result, loadLibFunc, procFunc)) {
 		goto error;
 	}
 
@@ -411,7 +421,7 @@ error:
 	return NULL;
 }
 
-FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
+FARPROC WINAPI MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 {
 	unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
 	int idx=-1;
@@ -456,33 +466,37 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
 
 void MemoryFreeLibrary(HMEMORYMODULE mod)
 {
+	MemoryFreeLibraryEx(mod, FreeLibrary);
+}
+
+void MemoryFreeLibraryEx(HMEMORYMODULE mod, FREELIBRARYFUNC freeLibFunc)
+{
 	int i;
 	PMEMORYMODULE module = (PMEMORYMODULE)mod;
 
-	if (module != NULL) {
-		if (module->initialized != 0) {
+	if (module != NULL && module->initialized != 0) {
+		// Lower the refcount of the module
+		if ((--module->initialized) == 0) {
 			// notify library about detaching from process
 			DllEntryProc DllEntry = (DllEntryProc) (module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
 			(*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
-			module->initialized = 0;
-		}
-
-		if (module->modules != NULL) {
-			// free previously opened libraries
-			for (i=0; i<module->numModules; i++) {
-				if (module->modules[i] != INVALID_HANDLE_VALUE) {
-					FreeLibrary(module->modules[i]);
+			
+			if (module->modules != NULL) {
+				// free previously opened libraries
+				for (i=0; i<module->numModules; i++) {
+					if (module->modules[i] != INVALID_HANDLE_VALUE) {
+						freeLibFunc(module->modules[i]);
+					}
 				}
+				free(module->modules);
 			}
 
-			free(module->modules);
+			if (module->codeBase != NULL) {
+				// release memory of library
+				VirtualFree(module->codeBase, 0, MEM_RELEASE);
+			}
+			
+			HeapFree(GetProcessHeap(), 0, module);
 		}
-
-		if (module->codeBase != NULL) {
-			// release memory of library
-			VirtualFree(module->codeBase, 0, MEM_RELEASE);
-		}
-
-		HeapFree(GetProcessHeap(), 0, module);
 	}
 }

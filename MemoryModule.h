@@ -31,15 +31,21 @@
 
 typedef void *HMEMORYMODULE;
 
+typedef FARPROC (WINAPI *GETPROCADDRFUNC)(HMODULE, LPCSTR);
+typedef HMODULE (WINAPI *LOADLIBRARYAFUNC)(LPCSTR);
+typedef BOOL (WINAPI *FREELIBRARYFUNC)(HMODULE);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 HMEMORYMODULE MemoryLoadLibrary(const void *);
+HMEMORYMODULE MemoryLoadLibraryEx(const void *, LOADLIBRARYAFUNC, GETPROCADDRFUNC);
 
-FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
+FARPROC WINAPI MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
 
 void MemoryFreeLibrary(HMEMORYMODULE);
+void MemoryFreeLibraryEx(HMEMORYMODULE, FREELIBRARYFUNC);
 
 #ifdef __cplusplus
 }
