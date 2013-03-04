@@ -257,6 +257,7 @@ BuildImportTable(PMEMORYMODULE module)
 
 			module->modules = (HMODULE *)realloc(module->modules, (module->numModules+1)*(sizeof(HMODULE)));
 			if (module->modules == NULL) {
+				FreeLibrary(handle);
 				result = 0;
 				break;
 			}
@@ -284,6 +285,7 @@ BuildImportTable(PMEMORYMODULE module)
 			}
 
 			if (!result) {
+				FreeLibrary(handle);
 				break;
 			}
 		}
