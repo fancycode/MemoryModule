@@ -247,7 +247,7 @@ BuildImportTable(PMEMORYMODULE module)
 		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
 			POINTER_TYPE *thunkRef;
 			FARPROC *funcRef;
-			HMODULE handle = LoadLibrary((LPCSTR) (codeBase + importDesc->Name));
+			HMODULE handle = LoadLibraryA((LPCSTR) (codeBase + importDesc->Name));
 			if (handle == NULL) {
 #if DEBUG_OUTPUT
 				OutputLastError("Can't load library");
