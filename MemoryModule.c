@@ -323,16 +323,18 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	}
 
 	// reserve memory for image of library
+	// XXX: is it correct to commit the complete memory region at once?
+    //      calling DllEntry raises an exception if we don't...
 	code = (unsigned char *)VirtualAlloc((LPVOID)(old_header->OptionalHeader.ImageBase),
 		old_header->OptionalHeader.SizeOfImage,
-		MEM_RESERVE,
+		MEM_RESERVE | MEM_COMMIT,
 		PAGE_READWRITE);
 
     if (code == NULL) {
         // try to allocate memory at arbitrary position
         code = (unsigned char *)VirtualAlloc(NULL,
             old_header->OptionalHeader.SizeOfImage,
-            MEM_RESERVE,
+            MEM_RESERVE | MEM_COMMIT,
             PAGE_READWRITE);
 		if (code == NULL) {
 #if DEBUG_OUTPUT
@@ -347,13 +349,6 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	result->numModules = 0;
 	result->modules = NULL;
 	result->initialized = 0;
-
-	// XXX: is it correct to commit the complete memory region at once?
-    //      calling DllEntry raises an exception if we don't...
-	VirtualAlloc(code,
-		old_header->OptionalHeader.SizeOfImage,
-		MEM_COMMIT,
-		PAGE_READWRITE);
 
 	// commit memory for headers
 	headers = (unsigned char *)VirtualAlloc(code,
