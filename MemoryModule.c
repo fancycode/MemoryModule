@@ -239,6 +239,7 @@ BuildImportTable(PMEMORYMODULE module)
 {
 	int result=1;
 	unsigned char *codeBase = module->codeBase;
+	HMODULE * tmp;
 
 	PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_IMPORT);
 	if (directory->Size > 0) {
@@ -255,12 +256,13 @@ BuildImportTable(PMEMORYMODULE module)
 				break;
 			}
 
-			module->modules = (HMODULE *)realloc(module->modules, (module->numModules+1)*(sizeof(HMODULE)));
-			if (module->modules == NULL) {
+			tmp = (HMODULE *)realloc(module->modules, (module->numModules+1)*(sizeof(HMODULE)));
+			if (tmp == NULL) {
 				FreeLibrary(handle);
 				result = 0;
 				break;
 			}
+			module->modules = tmp;
 
 			module->modules[module->numModules++] = handle;
 			if (importDesc->OriginalFirstThunk) {
