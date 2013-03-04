@@ -389,13 +389,6 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	// get entry point of loaded library
 	if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
 		DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
-		if (DllEntry == 0) {
-#if DEBUG_OUTPUT
-			OutputDebugString("Library has no entry point.\n");
-#endif
-			goto error;
-		}
-
 		// notify library about attaching to process
 		successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
 		if (!successfull) {
