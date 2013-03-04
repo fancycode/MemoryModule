@@ -35,7 +35,7 @@
 #define POINTER_TYPE DWORD
 #endif
 
-#include <Windows.h>
+#include <windows.h>
 #include <winnt.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
