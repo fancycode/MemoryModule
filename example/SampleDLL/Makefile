@@ -1,9 +1,12 @@
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
-CC = i686-w64-mingw32-gcc
-CXX = i686-w64-mingw32-g++
-LINK = i686-w64-mingw32-ld
+ifndef PLATFORM
+PLATFORM = i686
+endif
+CC = $(PLATFORM)-w64-mingw32-gcc
+CXX = $(PLATFORM)-w64-mingw32-g++
+LINK = $(PLATFORM)-w64-mingw32-ld
 else
 CC = gcc
 CXX = g++
