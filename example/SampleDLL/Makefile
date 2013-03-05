@@ -10,6 +10,7 @@ CXX = g++
 LINK = ld
 endif
 
+RM = rm
 CFLAGS  = -Wall -g -DSAMPLEDLL_EXPORTS
 LDFLAGS = -shared
 
@@ -20,3 +21,6 @@ SampleDLL.dll: $(OBJ)
 
 %.o: %.cpp
 	$(CXX) $(CFLAGS) -c $<
+
+clean:
+	$(RM) -rf $(OBJ) SampleDLL.dll

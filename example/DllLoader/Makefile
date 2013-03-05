@@ -10,6 +10,7 @@ CXX = g++
 LINK = ld
 endif
 
+RM = rm
 CFLAGS  = -Wall -g
 LDFLAGS = 
 
@@ -23,3 +24,6 @@ DllLoader.exe: $(OBJ)
 
 %.o: %.cc
 	$(CC) $(CFLAGS) -c $<
+
+clean:
+	$(RM) -rf $(OBJ) DllLoader.exe
