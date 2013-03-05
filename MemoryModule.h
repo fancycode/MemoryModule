@@ -2,7 +2,7 @@
  * Memory DLL loading code
  * Version 0.0.3
  *
- * Copyright (c) 2004-2012 by Joachim Bauch / mail@joachim-bauch.de
+ * Copyright (c) 2004-2013 by Joachim Bauch / mail@joachim-bauch.de
  * http://www.joachim-bauch.de
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -19,7 +19,7 @@
  *
  * The Initial Developer of the Original Code is Joachim Bauch.
  *
- * Portions created by Joachim Bauch are Copyright (C) 2004-2012
+ * Portions created by Joachim Bauch are Copyright (C) 2004-2013
  * Joachim Bauch. All Rights Reserved.
  *
  */
