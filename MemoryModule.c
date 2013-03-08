@@ -448,12 +448,14 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
 	PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY((PMEMORYMODULE)module, IMAGE_DIRECTORY_ENTRY_EXPORT);
 	if (directory->Size == 0) {
 		// no export table found
+		SetLastError(ERROR_PROC_NOT_FOUND);
 		return NULL;
 	}
 
 	exports = (PIMAGE_EXPORT_DIRECTORY) (codeBase + directory->VirtualAddress);
 	if (exports->NumberOfNames == 0 || exports->NumberOfFunctions == 0) {
 		// DLL doesn't export anything
+		SetLastError(ERROR_PROC_NOT_FOUND);
 		return NULL;
 	}
 
@@ -469,11 +471,13 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, const char *name)
 
 	if (idx == -1) {
 		// exported symbol not found
+		SetLastError(ERROR_PROC_NOT_FOUND);
 		return NULL;
 	}
 
 	if ((DWORD)idx > exports->NumberOfFunctions) {
 		// name <-> ordinal number don't match
+		SetLastError(ERROR_PROC_NOT_FOUND);
 		return NULL;
 	}
 
