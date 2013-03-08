@@ -14,7 +14,7 @@ void LoadFromFile(void)
 {
 	addNumberProc addNumber;
 	HINSTANCE handle = LoadLibrary(DLL_FILE);
-	if (handle == INVALID_HANDLE_VALUE)
+	if (handle == NULL)
 		return;
 
 	addNumber = (addNumberProc)GetProcAddress(handle, "addNumbers");
