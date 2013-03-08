@@ -501,7 +501,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 		if (module->modules != NULL) {
 			// free previously opened libraries
 			for (i=0; i<module->numModules; i++) {
-				if (module->modules[i] != INVALID_HANDLE_VALUE) {
+				if (module->modules[i] != NULL) {
 					module->freeLibrary(module->modules[i], module->userdata);
 				}
 			}
