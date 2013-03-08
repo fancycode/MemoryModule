@@ -51,9 +51,13 @@
 typedef struct {
 	PIMAGE_NT_HEADERS headers;
 	unsigned char *codeBase;
-	HMODULE *modules;
+	HCUSTOMMODULE *modules;
 	int numModules;
 	int initialized;
+	CustomLoadLibraryFunc loadLibrary;
+	CustomGetProcAddressFunc getProcAddress;
+	CustomFreeLibraryFunc freeLibrary;
+	void *userdata;
 } MEMORYMODULE, *PMEMORYMODULE;
 
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
@@ -239,7 +243,7 @@ BuildImportTable(PMEMORYMODULE module)
 {
 	int result=1;
 	unsigned char *codeBase = module->codeBase;
-	HMODULE * tmp;
+	HCUSTOMMODULE *tmp;
 
 	PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_IMPORT);
 	if (directory->Size > 0) {
@@ -247,7 +251,7 @@ BuildImportTable(PMEMORYMODULE module)
 		for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
 			POINTER_TYPE *thunkRef;
 			FARPROC *funcRef;
-			HMODULE handle = LoadLibraryA((LPCSTR) (codeBase + importDesc->Name));
+			HCUSTOMMODULE handle = module->loadLibrary((LPCSTR) (codeBase + importDesc->Name), module->userdata);
 			if (handle == NULL) {
 #if DEBUG_OUTPUT
 				OutputLastError("Can't load library");
@@ -256,9 +260,9 @@ BuildImportTable(PMEMORYMODULE module)
 				break;
 			}
 
-			tmp = (HMODULE *)realloc(module->modules, (module->numModules+1)*(sizeof(HMODULE)));
+			tmp = (HCUSTOMMODULE *) realloc(module->modules, (module->numModules+1)*(sizeof(HCUSTOMMODULE)));
 			if (tmp == NULL) {
-				FreeLibrary(handle);
+				module->freeLibrary(handle, module->userdata);
 				result = 0;
 				break;
 			}
@@ -275,10 +279,10 @@ BuildImportTable(PMEMORYMODULE module)
 			}
 			for (; *thunkRef; thunkRef++, funcRef++) {
 				if (IMAGE_SNAP_BY_ORDINAL(*thunkRef)) {
-					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef));
+					*funcRef = module->getProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef), module->userdata);
 				} else {
 					PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME) (codeBase + (*thunkRef));
-					*funcRef = (FARPROC)GetProcAddress(handle, (LPCSTR)&thunkData->Name);
+					*funcRef = module->getProcAddress(handle, (LPCSTR)&thunkData->Name, module->userdata);
 				}
 				if (*funcRef == 0) {
 					result = 0;
@@ -287,7 +291,7 @@ BuildImportTable(PMEMORYMODULE module)
 			}
 
 			if (!result) {
-				FreeLibrary(handle);
+				module->freeLibrary(handle, module->userdata);
 				break;
 			}
 		}
@@ -296,7 +300,36 @@ BuildImportTable(PMEMORYMODULE module)
 	return result;
 }
 
+static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
+{
+    HMODULE result = LoadLibraryA(filename);
+    if (result == NULL) {
+        return NULL;
+    }
+    
+    return (HCUSTOMMODULE) result;
+}
+
+static FARPROC _GetProcAddress(HCUSTOMMODULE module, LPCSTR name, void *userdata)
+{
+    return (FARPROC) GetProcAddress((HMODULE) module, name);
+}
+
+static void _FreeLibrary(HCUSTOMMODULE module, void *userdata)
+{
+    FreeLibrary((HMODULE) module);
+}
+
 HMEMORYMODULE MemoryLoadLibrary(const void *data)
+{
+    return MemoryLoadLibraryEx(data, _LoadLibrary, _GetProcAddress, _FreeLibrary, NULL);
+}
+
+HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
+    CustomLoadLibraryFunc loadLibrary,
+    CustomGetProcAddressFunc getProcAddress,
+    CustomFreeLibraryFunc freeLibrary,
+    void *userdata)
 {
 	PMEMORYMODULE result;
 	PIMAGE_DOS_HEADER dos_header;
@@ -349,6 +382,10 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data)
 	result->numModules = 0;
 	result->modules = NULL;
 	result->initialized = 0;
+	result->loadLibrary = loadLibrary;
+	result->getProcAddress = getProcAddress;
+	result->freeLibrary = freeLibrary;
+	result->userdata = userdata;
 
 	// commit memory for headers
 	headers = (unsigned char *)VirtualAlloc(code,
@@ -463,7 +500,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 			// free previously opened libraries
 			for (i=0; i<module->numModules; i++) {
 				if (module->modules[i] != INVALID_HANDLE_VALUE) {
-					FreeLibrary(module->modules[i]);
+					module->freeLibrary(module->modules[i], module->userdata);
 				}
 			}
 

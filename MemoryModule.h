@@ -31,14 +31,43 @@
 
 typedef void *HMEMORYMODULE;
 
+typedef void *HCUSTOMMODULE;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef HCUSTOMMODULE (*CustomLoadLibraryFunc)(LPCSTR, void *);
+typedef FARPROC (*CustomGetProcAddressFunc)(HCUSTOMMODULE, LPCSTR, void *);
+typedef void (*CustomFreeLibraryFunc)(HCUSTOMMODULE, void *);
+
+/**
+ * Load DLL from memory location.
+ *
+ * All dependencies are resolved using default LoadLibrary/GetProcAddress
+ * calls through the Windows API.
+ */
 HMEMORYMODULE MemoryLoadLibrary(const void *);
 
-FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
+/**
+ * Load DLL from memory location using custom dependency resolvers.
+ *
+ * Dependencies will be resolved using passed callback methods.
+ */
+HMEMORYMODULE MemoryLoadLibraryEx(const void *,
+    CustomLoadLibraryFunc,
+    CustomGetProcAddressFunc,
+    CustomFreeLibraryFunc,
+    void *);
 
+/**
+ * Get address of exported method.
+ */
+FARPROC MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
+
+/**
+ * Free previously loaded DLL.
+ */
 void MemoryFreeLibrary(HMEMORYMODULE);
 
 #ifdef __cplusplus
