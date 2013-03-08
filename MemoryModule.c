@@ -253,9 +253,7 @@ BuildImportTable(PMEMORYMODULE module)
 			FARPROC *funcRef;
 			HCUSTOMMODULE handle = module->loadLibrary((LPCSTR) (codeBase + importDesc->Name), module->userdata);
 			if (handle == NULL) {
-#if DEBUG_OUTPUT
-				OutputLastError("Can't load library");
-#endif
+				SetLastError(ERROR_MOD_NOT_FOUND);
 				result = 0;
 				break;
 			}
@@ -263,6 +261,7 @@ BuildImportTable(PMEMORYMODULE module)
 			tmp = (HCUSTOMMODULE *) realloc(module->modules, (module->numModules+1)*(sizeof(HCUSTOMMODULE)));
 			if (tmp == NULL) {
 				module->freeLibrary(handle, module->userdata);
+				SetLastError(ERROR_OUTOFMEMORY);
 				result = 0;
 				break;
 			}
@@ -292,6 +291,7 @@ BuildImportTable(PMEMORYMODULE module)
 
 			if (!result) {
 				module->freeLibrary(handle, module->userdata);
+				SetLastError(ERROR_PROC_NOT_FOUND);
 				break;
 			}
 		}
@@ -341,17 +341,13 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 
 	dos_header = (PIMAGE_DOS_HEADER)data;
 	if (dos_header->e_magic != IMAGE_DOS_SIGNATURE) {
-#if DEBUG_OUTPUT
-		OutputDebugString("Not a valid executable file.\n");
-#endif
+		SetLastError(ERROR_BAD_EXE_FORMAT);
 		return NULL;
 	}
 
 	old_header = (PIMAGE_NT_HEADERS)&((const unsigned char *)(data))[dos_header->e_lfanew];
 	if (old_header->Signature != IMAGE_NT_SIGNATURE) {
-#if DEBUG_OUTPUT
-		OutputDebugString("No PE header found.\n");
-#endif
+		SetLastError(ERROR_BAD_EXE_FORMAT);
 		return NULL;
 	}
 
@@ -370,18 +366,14 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
             MEM_RESERVE | MEM_COMMIT,
             PAGE_READWRITE);
 		if (code == NULL) {
-#if DEBUG_OUTPUT
-			OutputLastError("Can't reserve memory");
-#endif
+			SetLastError(ERROR_OUTOFMEMORY);
 			return NULL;
 		}
 	}
     
 	result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), 0, sizeof(MEMORYMODULE));
 	if (result == NULL) {
-#if DEBUG_OUTPUT
-		OutputLastError("Can't reserve memory");
-#endif
+		SetLastError(ERROR_OUTOFMEMORY);
 		VirtualFree(code, 0, MEM_RELEASE);
 		return NULL;
 	}
@@ -432,9 +424,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 		// notify library about attaching to process
 		successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
 		if (!successfull) {
-#if DEBUG_OUTPUT
-			OutputDebugString("Can't attach library.\n");
-#endif
+			SetLastError(ERROR_DLL_INIT_FAILED);
 			goto error;
 		}
 		result->initialized = 1;
