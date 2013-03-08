@@ -378,6 +378,14 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 	}
     
 	result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), 0, sizeof(MEMORYMODULE));
+	if (result == NULL) {
+#if DEBUG_OUTPUT
+		OutputLastError("Can't reserve memory");
+#endif
+		VirtualFree(code, 0, MEM_RELEASE);
+		return NULL;
+	}
+
 	result->codeBase = code;
 	result->numModules = 0;
 	result->modules = NULL;
