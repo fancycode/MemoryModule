@@ -31,6 +31,8 @@
 
 typedef void *HMEMORYMODULE;
 
+typedef void *HMEMORYRSRC;
+
 typedef void *HCUSTOMMODULE;
 
 #ifdef __cplusplus
@@ -69,6 +71,36 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
  * Free previously loaded DLL.
  */
 void MemoryFreeLibrary(HMEMORYMODULE);
+
+/**
+ * Find the location of a resource with the specified type and name.
+ */
+HMEMORYRSRC MemoryFindResource(HMEMORYMODULE, LPCTSTR, LPCTSTR);
+
+/**
+ * Find the location of a resource with the specified type, name and language.
+ */
+HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE, LPCTSTR, LPCTSTR, WORD);
+
+/**
+ * Get the size of the resource in bytes.
+ */
+DWORD MemorySizeofResource(HMEMORYMODULE, HMEMORYRSRC);
+
+/**
+ * Get a pointer to the contents of the resource.
+ */
+LPVOID MemoryLoadResource(HMEMORYMODULE, HMEMORYRSRC);
+
+/**
+ * Load a string resource.
+ */
+int MemoryLoadString(HMEMORYMODULE, UINT, LPTSTR, int);
+
+/**
+ * Load a string resource with a given language.
+ */
+int MemoryLoadStringEx(HMEMORYMODULE, UINT, LPTSTR, int, WORD);
 
 #ifdef __cplusplus
 }
