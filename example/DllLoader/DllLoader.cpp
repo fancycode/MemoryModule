@@ -9,7 +9,7 @@
 
 typedef int (*addNumberProc)(int, int);
 
-#define DLL_FILE _T("..\\SampleDLL\\SampleDLL.dll")
+#define DLL_FILE TEXT("..\\SampleDLL\\SampleDLL.dll")
 
 void LoadFromFile(void)
 {
@@ -17,7 +17,7 @@ void LoadFromFile(void)
     HRSRC resourceInfo;
     DWORD resourceSize;
     LPVOID resourceData;
-    _TCHAR buffer[100];
+    TCHAR buffer[100];
     
     HINSTANCE handle = LoadLibrary(DLL_FILE);
     if (handle == NULL)
@@ -52,7 +52,7 @@ void LoadFromMemory(void)
     HMEMORYRSRC resourceInfo;
     DWORD resourceSize;
     LPVOID resourceData;
-    _TCHAR buffer[100];
+    TCHAR buffer[100];
     
     fp = _tfopen(DLL_FILE, _T("rb"));
     if (fp == NULL)

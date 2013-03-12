@@ -537,11 +537,15 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
     DWORD end;
     DWORD middle;
     
-    if (!IS_INTRESOURCE(key) && key[0] == _T('#')) {
+    if (!IS_INTRESOURCE(key) && key[0] == TEXT('#')) {
         // special case: resource id given as string
-        _TCHAR *endpos = NULL;
-        long int tmpkey = (WORD) _tcstol((_TCHAR *) &key[1], &endpos, 10);
-        if (tmpkey <= 0xffff && _tcslen(endpos) == 0) {
+        TCHAR *endpos = NULL;
+#if defined(UNICODE)
+        long int tmpkey = (WORD) wcstol((TCHAR *) &key[1], &endpos, 10);
+#else
+        long int tmpkey = (WORD) strtol((TCHAR *) &key[1], &endpos, 10);
+#endif
+        if (tmpkey <= 0xffff && lstrlen(endpos) == 0) {
             key = MAKEINTRESOURCE(tmpkey);
         }
     }
@@ -570,8 +574,8 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
     } else {
         start = 0;
         end = resources->NumberOfIdEntries;
-#ifndef _UNICODE
-        _TCHAR *searchKey = NULL;
+#if !defined(UNICODE)
+        char *searchKey = NULL;
         int searchKeyLength = 0;
 #endif
         while (end > start) {
@@ -579,19 +583,19 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             middle = (start + end) >> 1;
             PIMAGE_RESOURCE_DIR_STRING_U resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
             int cmp;
-#ifndef _UNICODE
+#if !defined(UNICODE)
             if (searchKey == NULL || searchKeyLength < resourceString->Length) {
                 void *tmp = realloc(searchKey, resourceString->Length);
                 if (tmp == NULL) {
                     break;
                 }
                 
-                searchKey = (_TCHAR *) tmp;
+                searchKey = (char *) tmp;
             }
             wcstombs(searchKey, resourceString->NameString, resourceString->Length);
             cmp = strncmp(key, searchKey, resourceString->Length);
 #else
-            cmp = wcsncmp((_TCHAR *) key, resourceString->NameString, resourceString->Length);
+            cmp = wcsncmp(key, resourceString->NameString, resourceString->Length);
 #endif
             if (cmp < 0) {
                 end = middle;
@@ -602,7 +606,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
                 break;
             }
         }
-#ifndef _UNICODE
+#if !defined(UNICODE)
         free(searchKey);
 #endif
     }
@@ -716,8 +720,8 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
     } else {
         buffer[size] = 0;
     }
-#ifdef _UNICODE
-    _tcsncpy(buffer, data->NameString, size);
+#if defined(UNICODE)
+    wcsncpy(buffer, data->NameString, size);
 #else
     wcstombs(buffer, data->NameString, size);
 #endif
