@@ -20,6 +20,10 @@ CFLAGS  = -Wall -g -DSAMPLEDLL_EXPORTS
 LDFLAGS = -shared
 RCFLAGS = -O coff
 
+ifdef UNICODE
+CFLAGS += -DUNICODE -D_UNICODE
+endif
+
 OBJ = SampleDLL.o SampleDLL.res
 
 SampleDLL.dll: $(OBJ)

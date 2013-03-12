@@ -17,6 +17,10 @@ RM = rm
 CFLAGS  = -Wall -g
 LDFLAGS = 
 
+ifdef UNICODE
+CFLAGS += -DUNICODE -D_UNICODE
+endif
+
 OBJ = DllLoader.o ../../MemoryModule.o
 
 DllLoader.exe: $(OBJ)
