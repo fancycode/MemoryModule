@@ -572,17 +572,18 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             }
         }
     } else {
-        start = 0;
-        end = resources->NumberOfIdEntries;
 #if !defined(UNICODE)
         char *searchKey = NULL;
         int searchKeyLength = 0;
 #endif
+        start = 0;
+        end = resources->NumberOfIdEntries;
         while (end > start) {
             // resource names are always stored using 16bit characters
-            middle = (start + end) >> 1;
-            PIMAGE_RESOURCE_DIR_STRING_U resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
             int cmp;
+			PIMAGE_RESOURCE_DIR_STRING_U resourceString;
+            middle = (start + end) >> 1;
+            resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
 #if !defined(UNICODE)
             if (searchKey == NULL || searchKeyLength < resourceString->Length) {
                 void *tmp = realloc(searchKey, resourceString->Length);
@@ -693,17 +694,20 @@ MemoryLoadString(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize)
 int
 MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WORD language)
 {
+	HMEMORYRSRC resource;
+	PIMAGE_RESOURCE_DIR_STRING_U data;
+	DWORD size;
     if (maxsize == 0) {
         return 0;
     }
     
-    HMEMORYRSRC resource = MemoryFindResourceEx(module, MAKEINTRESOURCE((id >> 4) + 1), RT_STRING, language);
+    resource = MemoryFindResourceEx(module, MAKEINTRESOURCE((id >> 4) + 1), RT_STRING, language);
     if (resource == NULL) {
         buffer[0] = 0;
         return 0;
     }
     
-    PIMAGE_RESOURCE_DIR_STRING_U data = MemoryLoadResource(module, resource);
+    data = MemoryLoadResource(module, resource);
     id = id & 0x0f;
     while (id--) {
         data = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) data) + (data->Length + 1) * sizeof(WCHAR));
@@ -714,8 +718,8 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
         return 0;
     }
     
-    DWORD size = data->Length;
-    if (size >= maxsize) {
+    size = data->Length;
+    if (size >= (DWORD) maxsize) {
         size = maxsize;
     } else {
         buffer[size] = 0;
