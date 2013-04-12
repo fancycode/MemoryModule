@@ -563,9 +563,9 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             middle = (start + end) >> 1;
             entryName = (WORD) entries[middle].Name;
             if (check < entryName) {
-                end = middle;
+                end = (end != middle ? middle : middle-1);
             } else if (check > entryName) {
-                start = middle;
+                start = (start != middle ? middle : middle+1);
             } else {
                 result = &entries[middle];
                 break;
@@ -599,9 +599,9 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             cmp = wcsncmp(key, resourceString->NameString, resourceString->Length);
 #endif
             if (cmp < 0) {
-                end = middle;
+                end = (middle != end ? middle : middle-1);
             } else if (cmp > 0) {
-                start = middle;
+                start = (middle != start ? middle : middle+1);
             } else {
                 result = &entries[middle];
                 break;
