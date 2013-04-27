@@ -1,3 +1,6 @@
+#include "stdafx.h"
+#include "peloader.h"
+
 /*
  * Memory DLL loading code
  * Version 0.0.3
@@ -35,12 +38,7 @@
 #define POINTER_TYPE DWORD
 #endif
 
-#include <windows.h>
-#include <winnt.h>
-#include <tchar.h>
-#ifdef DEBUG_OUTPUT
-#include <stdio.h>
-#endif
+
 
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
 // Vista SDKs no longer define IMAGE_SIZEOF_BASE_RELOCATION!?
@@ -80,6 +78,22 @@ OutputLastError(const char *msg)
     LocalFree(tmp);
 }
 #endif
+
+static void 
+ExecuteTLS(PMEMORYMODULE module) 
+{
+    PIMAGE_TLS_DIRECTORY tls_directory = (PIMAGE_TLS_DIRECTORY) (module->headers->OptionalHeader.ImageBase + 
+		module->headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress);
+	PIMAGE_TLS_CALLBACK *tls_callback;
+	if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress > 0) {
+	    tls_callback = (PIMAGE_TLS_CALLBACK *) tls_directory->AddressOfCallBacks;
+	    if (tls_callback) {
+		    while (*tls_callback) {
+                (*tls_callback)((LPVOID)module->codeBase, DLL_PROCESS_ATTACH, NULL);
+			    tls_callback++;
+		    }
+	}
+}
 
 static void
 CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMODULE module)
@@ -419,6 +433,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     // sections that are marked as "discardable"
     FinalizeSections(result);
 
+    // TLS Callbacks are executed BEFORE the main loading
+    ExecuteTLS(result);
+
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
         DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
@@ -731,3 +748,4 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
 #endif
     return size;
 }
+
