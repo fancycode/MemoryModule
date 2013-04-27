@@ -1,6 +1,3 @@
-#include "stdafx.h"
-#include "peloader.h"
-
 /*
  * Memory DLL loading code
  * Version 0.0.3
@@ -82,15 +79,14 @@ OutputLastError(const char *msg)
 static void 
 ExecuteTLS(PMEMORYMODULE module) 
 {
-    PIMAGE_TLS_DIRECTORY tls_directory = (PIMAGE_TLS_DIRECTORY) (module->headers->OptionalHeader.ImageBase + 
+    PIMAGE_TLS_DIRECTORY tlsDirectory = (PIMAGE_TLS_DIRECTORY) (module->headers->OptionalHeader.ImageBase + 
 		module->headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress);
-	PIMAGE_TLS_CALLBACK *tls_callback;
 	if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress > 0) {
-	    tls_callback = (PIMAGE_TLS_CALLBACK *) tls_directory->AddressOfCallBacks;
-	    if (tls_callback) {
-		    while (*tls_callback) {
-                (*tls_callback)((LPVOID)module->codeBase, DLL_PROCESS_ATTACH, NULL);
-			    tls_callback++;
+	    PIMAGE_TLS_CALLBACK* tlsCallback = (PIMAGE_TLS_CALLBACK *) tlsDirectory->AddressOfCallBacks;
+	    if (tlsCallback) {
+		    while (*tlsCallback) {
+                (*tlsCallback)((LPVOID)module->codeBase, DLL_PROCESS_ATTACH, NULL);
+			    tlsCallback++;
 		    }
 	}
 }
