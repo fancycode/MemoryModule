@@ -1,3 +1,6 @@
+#include "stdafx.h"
+#include "peloader.h"
+
 /*
  * Memory DLL loading code
  * Version 0.0.3
@@ -35,14 +38,12 @@
 #define POINTER_TYPE DWORD
 #endif
 
-
+#include "memorymodule.h"
 
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
 // Vista SDKs no longer define IMAGE_SIZEOF_BASE_RELOCATION!?
 #define IMAGE_SIZEOF_BASE_RELOCATION (sizeof(IMAGE_BASE_RELOCATION))
 #endif
-
-#include "MemoryModule.h"
 
 typedef struct {
     PIMAGE_NT_HEADERS headers;
@@ -81,13 +82,17 @@ ExecuteTLS(PMEMORYMODULE module)
 {
     PIMAGE_TLS_DIRECTORY tlsDirectory = (PIMAGE_TLS_DIRECTORY) (module->headers->OptionalHeader.ImageBase + 
 		module->headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress);
-	if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress > 0) {
+	if (module->headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress > 0) 
+    {
 	    PIMAGE_TLS_CALLBACK* tlsCallback = (PIMAGE_TLS_CALLBACK *) tlsDirectory->AddressOfCallBacks;
-	    if (tlsCallback) {
-		    while (*tlsCallback) {
+	    if (tlsCallback) 
+        {
+		    while (*tlsCallback) 
+            {
                 (*tlsCallback)((LPVOID)module->codeBase, DLL_PROCESS_ATTACH, NULL);
 			    tlsCallback++;
 		    }
+        }
 	}
 }
 
@@ -412,7 +417,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->headers->OptionalHeader.ImageBase = (POINTER_TYPE)code;
 
     // copy sections from DLL file block to new memory location
-    CopySections(data, old_header, result);
+    CopySections((const unsigned char*)data, old_header, result);
 
     // adjust base address of imported data
     locationDelta = (SIZE_T)(code - old_header->OptionalHeader.ImageBase);
@@ -720,7 +725,7 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
         return 0;
     }
     
-    data = MemoryLoadResource(module, resource);
+    data = (PIMAGE_RESOURCE_DIR_STRING_U)MemoryLoadResource(module, resource);
     id = id & 0x0f;
     while (id--) {
         data = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) data) + (data->Length + 1) * sizeof(WCHAR));
