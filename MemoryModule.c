@@ -185,6 +185,24 @@ FinalizeSections(PMEMORYMODULE module)
 }
 
 static void
+ExecuteTLS(PMEMORYMODULE module) 
+{
+    unsigned char *codeBase = module->codeBase;
+    
+    PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_TLS);
+    if (directory->VirtualAddress > 0) {
+        PIMAGE_TLS_DIRECTORY tls = (PIMAGE_TLS_DIRECTORY) (codeBase + directory->VirtualAddress);
+        PIMAGE_TLS_CALLBACK* callback = (PIMAGE_TLS_CALLBACK *) tls->AddressOfCallBacks;
+        if (callback) {
+            while (*callback) {
+                (*callback)((LPVOID) codeBase, DLL_PROCESS_ATTACH, NULL);
+                callback++;
+            }
+        }
+    }
+}
+
+static void
 PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
 {
     DWORD i;
@@ -418,6 +436,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     // mark memory pages depending on section headers and release
     // sections that are marked as "discardable"
     FinalizeSections(result);
+
+    // TLS callbacks are executed BEFORE the main loading
+    ExecuteTLS(result);
 
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
