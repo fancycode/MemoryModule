@@ -413,7 +413,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
         PAGE_READWRITE);
     
     // copy PE header to code
-    memcpy(headers, dos_header, dos_header->e_lfanew + old_header->OptionalHeader.SizeOfHeaders);
+    memcpy(headers, dos_header, old_header->OptionalHeader.SizeOfHeaders);
     result->headers = (PIMAGE_NT_HEADERS)&((const unsigned char *)(headers))[dos_header->e_lfanew];
 
     // update position
