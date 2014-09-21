@@ -13,7 +13,7 @@ BEGIN
       VALUE "LegalCopyright", "Copyright (c) 2004-2014 Joachim Bauch"
       VALUE "OriginalFilename", "SampleDLL.dll"
       VALUE "ProductName", "MemoryModule"
-      VALUE "ProductVersion", "0.0.3"
+      VALUE "ProductVersion", "0.0.4"
     END
   END
 
