@@ -420,7 +420,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->headers->OptionalHeader.ImageBase = (POINTER_TYPE)code;
 
     // copy sections from DLL file block to new memory location
-    CopySections(data, old_header, result);
+    CopySections((const unsigned char *) data, old_header, result);
 
     // adjust base address of imported data
     locationDelta = (SIZE_T)(code - old_header->OptionalHeader.ImageBase);
@@ -728,7 +728,7 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
         return 0;
     }
 
-    data = MemoryLoadResource(module, resource);
+    data = (PIMAGE_RESOURCE_DIR_STRING_U) MemoryLoadResource(module, resource);
     id = id & 0x0f;
     while (id--) {
         data = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) data) + (data->Length + 1) * sizeof(WCHAR));
