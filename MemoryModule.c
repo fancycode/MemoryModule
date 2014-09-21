@@ -370,6 +370,15 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
         return NULL;
     }
 
+#ifdef _WIN64
+    if (old_header->FileHeader.Machine == IMAGE_FILE_MACHINE_I386) {
+#else
+    if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
+#endif
+        SetLastError(ERROR_BAD_EXE_FORMAT);
+        return NULL;
+    }
+
     // reserve memory for image of library
     // XXX: is it correct to commit the complete memory region at once?
     //      calling DllEntry raises an exception if we don't...
