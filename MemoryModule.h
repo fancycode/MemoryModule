@@ -44,7 +44,7 @@ typedef FARPROC (*CustomGetProcAddressFunc)(HCUSTOMMODULE, LPCSTR, void *);
 typedef void (*CustomFreeLibraryFunc)(HCUSTOMMODULE, void *);
 
 /**
- * Load DLL from memory location.
+ * Load EXE/DLL from memory location.
  *
  * All dependencies are resolved using default LoadLibrary/GetProcAddress
  * calls through the Windows API.
@@ -52,7 +52,7 @@ typedef void (*CustomFreeLibraryFunc)(HCUSTOMMODULE, void *);
 HMEMORYMODULE MemoryLoadLibrary(const void *);
 
 /**
- * Load DLL from memory location using custom dependency resolvers.
+ * Load EXE/DLL from memory location using custom dependency resolvers.
  *
  * Dependencies will be resolved using passed callback methods.
  */
@@ -68,9 +68,22 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *,
 FARPROC MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
 
 /**
- * Free previously loaded DLL.
+ * Free previously loaded EXE/DLL.
  */
 void MemoryFreeLibrary(HMEMORYMODULE);
+
+/**
+ * Execute entry point (EXE only). The entry point can only be executed
+ * if the EXE has been loaded to the correct base address or it could
+ * be relocated (i.e. relocation information have not been stripped by
+ * the linker).
+ *
+ * Important: calling this function will not return, i.e. once the loaded
+ * EXE finished running, the process will terminate.
+ *
+ * Returns a negative value if the entry point could not be executed.
+ */
+int MemoryCallEntryPoint(HMEMORYMODULE);
 
 /**
  * Find the location of a resource with the specified type and name.

@@ -49,19 +49,23 @@
 
 #include "MemoryModule.h"
 
+typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
+typedef int (WINAPI *ExeEntryProc)(void);
+
 typedef struct {
     PIMAGE_NT_HEADERS headers;
     unsigned char *codeBase;
     HCUSTOMMODULE *modules;
     int numModules;
     int initialized;
+    int isDLL;
+    int isRelocated;
     CustomLoadLibraryFunc loadLibrary;
     CustomGetProcAddressFunc getProcAddress;
     CustomFreeLibraryFunc freeLibrary;
     void *userdata;
+    ExeEntryProc exeEntry;
 } MEMORYMODULE, *PMEMORYMODULE;
-
-typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 
 #define GET_HEADER_DICTIONARY(module, idx)	&(module)->headers->OptionalHeader.DataDirectory[idx]
 
@@ -202,11 +206,12 @@ ExecuteTLS(PMEMORYMODULE module)
     }
 }
 
-static void
+static int
 PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
 {
     DWORD i;
     unsigned char *codeBase = module->codeBase;
+    int result = 0;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_BASERELOC);
     if (directory->Size > 0) {
@@ -254,7 +259,9 @@ PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
             // advance to next relocation block
             relocation = (PIMAGE_BASE_RELOCATION) (((char *) relocation) + relocation->SizeOfBlock);
         }
+        result = 1;
     }
+    return result;
 }
 
 static int
@@ -355,7 +362,6 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     PIMAGE_NT_HEADERS old_header;
     unsigned char *code, *headers;
     SIZE_T locationDelta;
-    DllEntryProc DllEntry;
     BOOL successfull;
 
     dos_header = (PIMAGE_DOS_HEADER)data;
@@ -410,6 +416,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->numModules = 0;
     result->modules = NULL;
     result->initialized = 0;
+    result->isDLL = (old_header->FileHeader.Characteristics & IMAGE_FILE_DLL) != 0;
     result->loadLibrary = loadLibrary;
     result->getProcAddress = getProcAddress;
     result->freeLibrary = freeLibrary;
@@ -434,7 +441,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     // adjust base address of imported data
     locationDelta = (SIZE_T)(code - old_header->OptionalHeader.ImageBase);
     if (locationDelta != 0) {
-        PerformBaseRelocation(result, locationDelta);
+        result->isRelocated = PerformBaseRelocation(result, locationDelta);
+    } else {
+        result->isRelocated = 1;
     }
 
     // load required dlls and adjust function table of imports
@@ -451,14 +460,20 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
-        DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
-        // notify library about attaching to process
-        successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
-        if (!successfull) {
-            SetLastError(ERROR_DLL_INIT_FAILED);
-            goto error;
+        if (result->isDLL) {
+            DllEntryProc DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
+            // notify library about attaching to process
+            successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
+            if (!successfull) {
+                SetLastError(ERROR_DLL_INIT_FAILED);
+                goto error;
+            }
+            result->initialized = 1;
+        } else {
+            result->exeEntry = (ExeEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
         }
-        result->initialized = 1;
+    } else {
+        result->exeEntry = NULL;
     }
 
     return (HMEMORYMODULE)result;
@@ -547,6 +562,17 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 
         HeapFree(GetProcessHeap(), 0, module);
     }
+}
+
+int MemoryCallEntryPoint(HMEMORYMODULE mod)
+{
+    PMEMORYMODULE module = (PMEMORYMODULE)mod;
+
+    if (module == NULL || module->isDLL || module->exeEntry == NULL || !module->isRelocated) {
+        return -1;
+    }
+
+    return module->exeEntry();
 }
 
 #define DEFAULT_LANGUAGE        MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL)

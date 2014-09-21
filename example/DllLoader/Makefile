@@ -22,9 +22,15 @@ CFLAGS += -DUNICODE -D_UNICODE
 endif
 
 OBJ = DllLoader.o ../../MemoryModule.o
+OBJ_LOADER = DllLoaderLoader.o ../../MemoryModule.o
+
+all: DllLoader.exe DllLoaderLoader.exe
 
 DllLoader.exe: $(OBJ)
-	$(CC) $(LDFLAGS) -o DllLoader.exe $(OBJ)
+	$(CC) $(LDFLAGS) -Wl,--image-base -Wl,0x20000000 -o DllLoader.exe $(OBJ)
+
+DllLoaderLoader.exe: $(OBJ_LOADER)
+	$(CC) $(LDFLAGS) -Wl,--image-base -Wl,0x10000000 -o DllLoaderLoader.exe $(OBJ_LOADER)
 
 %.o: %.cpp
 	$(CXX) $(CFLAGS) -c $<
@@ -33,4 +39,4 @@ DllLoader.exe: $(OBJ)
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	$(RM) -rf $(OBJ) DllLoader.exe
+	$(RM) -rf $(OBJ) $(OBJ_LOADER) DllLoader.exe DllLoaderLoader.exe
