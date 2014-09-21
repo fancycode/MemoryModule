@@ -18,24 +18,24 @@ void LoadFromFile(void)
     DWORD resourceSize;
     LPVOID resourceData;
     TCHAR buffer[100];
-    
+
     HINSTANCE handle = LoadLibrary(DLL_FILE);
     if (handle == NULL)
         return;
 
     addNumber = (addNumberProc)GetProcAddress(handle, "addNumbers");
     _tprintf(_T("From file: %d\n"), addNumber(1, 2));
-    
+
     resourceInfo = FindResource(handle, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
     _tprintf(_T("FindResource returned 0x%p\n"), resourceInfo);
-    
+
     resourceSize = SizeofResource(handle, resourceInfo);
     resourceData = LoadResource(handle, resourceInfo);
     _tprintf(_T("Resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
-    
+
     LoadString(handle, 1, buffer, sizeof(buffer));
     _tprintf(_T("String1: %s\n"), buffer);
-    
+
     LoadString(handle, 20, buffer, sizeof(buffer));
     _tprintf(_T("String2: %s\n"), buffer);
 
@@ -53,7 +53,7 @@ void LoadFromMemory(void)
     DWORD resourceSize;
     LPVOID resourceData;
     TCHAR buffer[100];
-    
+
     fp = _tfopen(DLL_FILE, _T("rb"));
     if (fp == NULL)
     {
@@ -80,14 +80,14 @@ void LoadFromMemory(void)
 
     resourceInfo = MemoryFindResource(handle, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
     _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
-    
+
     resourceSize = MemorySizeofResource(handle, resourceInfo);
     resourceData = MemoryLoadResource(handle, resourceInfo);
     _tprintf(_T("Memory resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
-    
+
     MemoryLoadString(handle, 1, buffer, sizeof(buffer));
     _tprintf(_T("String1: %s\n"), buffer);
-    
+
     MemoryLoadString(handle, 20, buffer, sizeof(buffer));
     _tprintf(_T("String2: %s\n"), buffer);
 

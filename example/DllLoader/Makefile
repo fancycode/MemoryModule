@@ -15,7 +15,7 @@ endif
 
 RM = rm
 CFLAGS  = -Wall -g
-LDFLAGS = 
+LDFLAGS =
 
 ifdef UNICODE
 CFLAGS += -DUNICODE -D_UNICODE

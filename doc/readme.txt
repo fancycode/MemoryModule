@@ -60,7 +60,7 @@ stub that normally just displays an error message about the program not being
 able to be run from DOS mode.
 
 Microsoft defines the DOS header as follows::
-    
+
     typedef struct _IMAGE_DOS_HEADER {      // DOS .EXE header
         WORD   e_magic;                     // Magic number
         WORD   e_cblp;                      // Bytes on last page of file
@@ -114,14 +114,14 @@ about symbols, etc::
 
 .. _OptionalHeader:
 
-The `OptionalHeader` contains informations about the *logical* format of the library, 
+The `OptionalHeader` contains informations about the *logical* format of the library,
 including required OS version, memory requirements and entry points::
 
     typedef struct _IMAGE_OPTIONAL_HEADER {
         //
         // Standard fields.
         //
-    
+
         WORD    Magic;
         BYTE    MajorLinkerVersion;
         BYTE    MinorLinkerVersion;
@@ -131,11 +131,11 @@ including required OS version, memory requirements and entry points::
         DWORD   AddressOfEntryPoint;
         DWORD   BaseOfCode;
         DWORD   BaseOfData;
-    
+
         //
         // NT additional fields.
         //
-    
+
         DWORD   ImageBase;
         DWORD   SectionAlignment;
         DWORD   FileAlignment;
@@ -247,25 +247,25 @@ When issuing the API call `LoadLibrary`, Windows basically performs these tasks:
 
 2. Try to allocate a memory block of `PEHeader.OptionalHeader.SizeOfImage` bytes
    at position `PEHeader.OptionalHeader.ImageBase`.
-   
+
 3. Parse section headers and copy sections to their addresses.  The destination
    address for each section, relative to the base of the allocated memory block,
    is stored in the `VirtualAddress` attribute of the `IMAGE_SECTION_HEADER`
    structure.
-   
+
 4. If the allocated memory block differs from `ImageBase`, various references in
    the code and/or data sections must be adjusted.  This is called *Base
    relocation*.
-   
+
 5. The required imports for the library must be resolved by loading the
    corresponding libraries.
-   
+
 6. The memory regions of the different sections must be protected depending on
    the section's characteristics.  Some sections are marked as *discardable*
    and therefore can be safely freed at this point.  These sections normally
    contain temporary data that is only needed during the import, like the
    informations for the base relocation.
-   
+
 7. Now the library is loaded completely.  It must be notified about this by
    calling the entry point using the flag `DLL_PROCESS_ATTACH`.
 
@@ -363,7 +363,7 @@ as follows::
                                                 // -1 if bound, and real date\time stamp
                                                 //     in IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT (new BIND)
                                                 // O.W. date/time stamp of DLL bound to (Old BIND)
-    
+
         DWORD   ForwarderChain;                 // -1 if no forwarders
         DWORD   Name;
         DWORD   FirstThunk;                     // RVA to IAT (if bound this IAT has actual addresses)
@@ -401,10 +401,10 @@ These flags can be one or a combination of
 
 IMAGE_SCN_MEM_EXECUTE
     The section contains data that can be executed.
-    
+
 IMAGE_SCN_MEM_READ
     The section contains data that is readable.
-    
+
 IMAGE_SCN_MEM_WRITE
     The section contains data that is writeable.
 
@@ -428,7 +428,7 @@ In addition the section flags above, the following can be added:
 IMAGE_SCN_MEM_DISCARDABLE
     The data in this section can be freed after the import.  Usually this is
     specified for relocation data.
-    
+
 IMAGE_SCN_MEM_NOT_CACHED
     The data in this section must not get cached by Windows.  Add the bit
     flag `PAGE_NOCACHE` to the protection flags above.
@@ -444,7 +444,7 @@ to a process.
 The function at the entry point is defined as
 
 ::
-    
+
     typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 
 So the last code we need to execute is
@@ -497,7 +497,7 @@ To free the custom loaded library, perform the steps
 
 	DllEntryProc entry = (DllEntryProc)(baseAddress + PEHeader->OptionalHeader.AddressOfEntryPoint);
 	(*entry)((HINSTANCE)baseAddress, DLL_PROCESS_ATTACH, 0);
-    
+
 - Free external libraries used to resolve imports.
 - Free allocated memory.
 
@@ -510,7 +510,7 @@ MemoryModule is a C-library that can be used to load a DLL from memory.
 The interface is very similar to the standard methods for loading of libraries::
 
     typedef void *HMEMORYMODULE;
-    
+
     HMEMORYMODULE MemoryLoadLibrary(const void *);
     FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
     void MemoryFreeLibrary(HMEMORYMODULE);
