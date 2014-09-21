@@ -4,12 +4,12 @@ ifeq ($(UNAME), Linux)
 ifndef PLATFORM
 PLATFORM = i686
 endif
-CC = $(PLATFORM)-w64-mingw32-gcc
+CC = $(PLATFORM)-w64-mingw32-g++
 CXX = $(PLATFORM)-w64-mingw32-g++
 LINK = $(PLATFORM)-w64-mingw32-ld
 RC = $(PLATFORM)-w64-mingw32-windres
 else
-CC = gcc
+CC = g++
 CXX = g++
 LINK = ld
 RC = rc
