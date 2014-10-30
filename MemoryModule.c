@@ -121,6 +121,19 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
     }
 }
 
+static SIZE_T
+GetTextSectionPointerToRawData(PMEMORYMODULE module)
+{
+	int i;
+	PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
+	for (i = 0; i < module->headers->FileHeader.NumberOfSections; i++, section++) {
+		if (section->SizeOfRawData != 0 && strcmp(section->Name, ".text") == 0) {
+			return section->PointerToRawData;
+		}
+	}
+	return 0;
+}
+
 // Protection flags for memory pages (Executable, Readable, Writeable)
 static int ProtectionFlags[2][2][2] = {
     {
@@ -377,7 +390,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     }
 
 #ifdef _WIN64
-    if (old_header->FileHeader.Machine == IMAGE_FILE_MACHINE_I386) {
+    if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) {
 #else
     if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
 #endif
@@ -461,7 +474,15 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
         if (result->isDLL) {
-            DllEntryProc DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
+			DllEntryProc DllEntry;
+			if (result->isRelocated == TRUE) {
+				DllEntry = (DllEntryProc)(code + result->headers->OptionalHeader.BaseOfCode 
+					+ GetTextSectionPointerToRawData(result) 
+					+ result->headers->OptionalHeader.FileAlignment);
+			}
+			else {
+				DllEntry = (DllEntryProc)(code + result->headers->OptionalHeader.AddressOfEntryPoint);
+			}
             // notify library about attaching to process
             successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
             if (!successfull) {
