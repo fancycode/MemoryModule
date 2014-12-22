@@ -29,8 +29,6 @@
 #pragma warning( disable : 4311 4312 )
 #endif
 
-#define PAGE_SIZE 4096
-
 #ifdef _WIN64
 #define POINTER_TYPE ULONGLONG
 #else
@@ -94,6 +92,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
     unsigned char *codeBase = module->codeBase;
     unsigned char *dest;
     PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
+	SYSTEM_INFO siSysInfo;
+	GetNativeSystemInfo(&siSysInfo);
+
     for (i=0; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         if (section->SizeOfRawData == 0) {
             // section doesn't contain data in the dll itself, but may define
@@ -104,7 +105,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     size,
                     MEM_COMMIT,
                     PAGE_READWRITE);
-                if((POINTER_TYPE)(codeBase + section->VirtualAddress) % PAGE_SIZE){
+                if((POINTER_TYPE)(codeBase + section->VirtualAddress) % siSysInfo.dwPageSize){
                     dest = codeBase + section->VirtualAddress;
                 }
                 section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
@@ -120,7 +121,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             section->SizeOfRawData,
                             MEM_COMMIT,
                             PAGE_READWRITE);
-        if((POINTER_TYPE)(codeBase + section->VirtualAddress) % PAGE_SIZE){
+        if((POINTER_TYPE)(codeBase + section->VirtualAddress) % siSysInfo.dwPageSize){
             dest = codeBase + section->VirtualAddress;
         }
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
