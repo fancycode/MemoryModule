@@ -29,6 +29,8 @@
 #pragma warning( disable : 4311 4312 )
 #endif
 
+#define PAGE_SIZE 4096
+
 #ifdef _WIN64
 #define POINTER_TYPE ULONGLONG
 #else
@@ -102,7 +104,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     size,
                     MEM_COMMIT,
                     PAGE_READWRITE);
-
+                if((POINTER_TYPE)(codeBase + section->VirtualAddress) % PAGE_SIZE){
+                    dest = codeBase + section->VirtualAddress;
+                }
                 section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
                 memset(dest, 0, size);
             }
@@ -116,6 +120,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             section->SizeOfRawData,
                             MEM_COMMIT,
                             PAGE_READWRITE);
+        if((POINTER_TYPE)(codeBase + section->VirtualAddress) % PAGE_SIZE){
+            dest = codeBase + section->VirtualAddress;
+        }
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
         section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
     }
