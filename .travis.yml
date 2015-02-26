@@ -1,0 +1,19 @@
+env:
+  - PLATFORM=x86_64 WINE=wine64
+  - PLATFORM=i686 WINE=wine
+
+language: cpp
+
+cache:
+  - apt
+
+before_install:
+  - sudo apt-get update -qq
+  - sh -c "if [ '$PLATFORM' = 'i686'   ]; then sudo apt-get install -qq wine gcc-mingw-w64-i686   g++-mingw-w64-i686   binutils-mingw-w64-i686   mingw-w64-dev; fi"
+  - sh -c "if [ '$PLATFORM' = 'x86_64' ]; then sudo apt-get install -qq wine gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-dev; fi"
+
+script:
+  - make PLATFORM=$PLATFORM
+  - cd example/DllLoader
+  - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoader.exe
+  - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoaderLoader.exe
