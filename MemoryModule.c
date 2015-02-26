@@ -596,11 +596,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
     if (!IS_INTRESOURCE(key) && key[0] == TEXT('#')) {
         // special case: resource id given as string
         TCHAR *endpos = NULL;
-#if defined(UNICODE)
-        long int tmpkey = (WORD) wcstol((TCHAR *) &key[1], &endpos, 10);
-#else
-        long int tmpkey = (WORD) strtol((TCHAR *) &key[1], &endpos, 10);
-#endif
+        long int tmpkey = (WORD) _tcstol((TCHAR *) &key[1], &endpos, 10);
         if (tmpkey <= 0xffff && lstrlen(endpos) == 0) {
             key = MAKEINTRESOURCE(tmpkey);
         }
