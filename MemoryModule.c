@@ -377,7 +377,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     }
 
 #ifdef _WIN64
-    if (old_header->FileHeader.Machine == IMAGE_FILE_MACHINE_I386) {
+    if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) {
 #else
     if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
 #endif
