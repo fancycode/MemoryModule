@@ -29,14 +29,9 @@
 #pragma warning( disable : 4311 4312 )
 #endif
 
-#ifdef _WIN64
-#define POINTER_TYPE ULONGLONG
-#else
-#define POINTER_TYPE DWORD
-#endif
-
 #include <windows.h>
 #include <winnt.h>
+#include <stddef.h>
 #include <tchar.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
@@ -103,7 +98,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     MEM_COMMIT,
                     PAGE_READWRITE);
 
-                section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
+                section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
                 memset(dest, 0, size);
             }
 
@@ -117,7 +112,7 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             MEM_COMMIT,
                             PAGE_READWRITE);
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
-        section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
+        section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
     }
 }
 
@@ -140,7 +135,7 @@ FinalizeSections(PMEMORYMODULE module)
     int i;
     PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
 #ifdef _WIN64
-    POINTER_TYPE imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
+    uintptr_t imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
 #else
     #define imageOffset 0
 #endif
@@ -154,7 +149,7 @@ FinalizeSections(PMEMORYMODULE module)
 
         if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
             // section is not needed any more and can safely be freed
-            VirtualFree((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, MEM_DECOMMIT);
+            VirtualFree((LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, MEM_DECOMMIT);
             continue;
         }
 
@@ -176,7 +171,7 @@ FinalizeSections(PMEMORYMODULE module)
 
         if (size > 0) {
             // change memory access flags
-            if (VirtualProtect((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), size, protect, &oldProtect) == 0)
+            if (VirtualProtect((LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset), size, protect, &oldProtect) == 0)
 #ifdef DEBUG_OUTPUT
                 OutputLastError("Error protecting memory page")
 #endif
@@ -275,7 +270,7 @@ BuildImportTable(PMEMORYMODULE module)
     if (directory->Size > 0) {
         PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR) (codeBase + directory->VirtualAddress);
         for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
-            POINTER_TYPE *thunkRef;
+            uintptr_t *thunkRef;
             FARPROC *funcRef;
             HCUSTOMMODULE handle = module->loadLibrary((LPCSTR) (codeBase + importDesc->Name), module->userdata);
             if (handle == NULL) {
@@ -295,11 +290,11 @@ BuildImportTable(PMEMORYMODULE module)
 
             module->modules[module->numModules++] = handle;
             if (importDesc->OriginalFirstThunk) {
-                thunkRef = (POINTER_TYPE *) (codeBase + importDesc->OriginalFirstThunk);
+                thunkRef = (uintptr_t *) (codeBase + importDesc->OriginalFirstThunk);
                 funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
             } else {
                 // no hint table
-                thunkRef = (POINTER_TYPE *) (codeBase + importDesc->FirstThunk);
+                thunkRef = (uintptr_t *) (codeBase + importDesc->FirstThunk);
                 funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
             }
             for (; *thunkRef; thunkRef++, funcRef++) {
@@ -433,7 +428,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->headers = (PIMAGE_NT_HEADERS)&((const unsigned char *)(headers))[dos_header->e_lfanew];
 
     // update position
-    result->headers->OptionalHeader.ImageBase = (POINTER_TYPE)code;
+    result->headers->OptionalHeader.ImageBase = (uintptr_t)code;
 
     // copy sections from DLL file block to new memory location
     CopySections((const unsigned char *) data, old_header, result);
@@ -606,7 +601,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
     // followed by an ordered list of id entries - we can do
     // a binary search to find faster...
     if (IS_INTRESOURCE(key)) {
-        WORD check = (WORD) (POINTER_TYPE) key;
+        WORD check = (WORD) (uintptr_t) key;
         start = resources->NumberOfNamedEntries;
         end = start + resources->NumberOfIdEntries;
 
@@ -708,7 +703,7 @@ HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE module, LPCTSTR name, LPCTSTR typ
     }
 
     nameResources = (PIMAGE_RESOURCE_DIRECTORY) (codeBase + directory->VirtualAddress + (foundName->OffsetToData & 0x7fffffff));
-    foundLanguage = _MemorySearchResourceEntry(rootResources, nameResources, (LPCTSTR) (POINTER_TYPE) language);
+    foundLanguage = _MemorySearchResourceEntry(rootResources, nameResources, (LPCTSTR) (uintptr_t) language);
     if (foundLanguage == NULL) {
         // requested language not found, use first available
         if (nameResources->NumberOfIdEntries == 0) {
