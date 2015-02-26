@@ -633,7 +633,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
         int searchKeyLength = 0;
 #endif
         start = 0;
-        end = resources->NumberOfIdEntries;
+        end = resources->NumberOfNamedEntries;
         while (end > start) {
             // resource names are always stored using 16bit characters
             int cmp;
