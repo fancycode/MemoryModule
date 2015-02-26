@@ -67,7 +67,7 @@ typedef struct {
     ExeEntryProc exeEntry;
 } MEMORYMODULE, *PMEMORYMODULE;
 
-#define GET_HEADER_DICTIONARY(module, idx)	&(module)->headers->OptionalHeader.DataDirectory[idx]
+#define GET_HEADER_DICTIONARY(module, idx)  &(module)->headers->OptionalHeader.DataDirectory[idx]
 
 #ifdef DEBUG_OUTPUT
 static void
@@ -637,7 +637,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
         while (end > start) {
             // resource names are always stored using 16bit characters
             int cmp;
-			PIMAGE_RESOURCE_DIR_STRING_U resourceString;
+            PIMAGE_RESOURCE_DIR_STRING_U resourceString;
             middle = (start + end) >> 1;
             resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
 #if !defined(UNICODE)
@@ -750,9 +750,9 @@ MemoryLoadString(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize)
 int
 MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WORD language)
 {
-	HMEMORYRSRC resource;
-	PIMAGE_RESOURCE_DIR_STRING_U data;
-	DWORD size;
+    HMEMORYRSRC resource;
+    PIMAGE_RESOURCE_DIR_STRING_U data;
+    DWORD size;
     if (maxsize == 0) {
         return 0;
     }
