@@ -47,6 +47,8 @@
 #define IMAGE_SIZEOF_BASE_RELOCATION (sizeof(IMAGE_BASE_RELOCATION))
 #endif
 
+#define ALIGN_DOWN_BY(length, alignment) ((ULONG_PTR)(length) & ~(alignment - 1))
+
 #include "MemoryModule.h"
 
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
@@ -92,6 +94,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
     unsigned char *codeBase = module->codeBase;
     unsigned char *dest;
     PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
+	SYSTEM_INFO siSysInfo;
+	GetNativeSystemInfo(&siSysInfo);
+
     for (i=0; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         if (section->SizeOfRawData == 0) {
             // section doesn't contain data in the dll itself, but may define
@@ -102,7 +107,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     size,
                     MEM_COMMIT,
                     PAGE_READWRITE);
-
+                if((POINTER_TYPE)(codeBase + section->VirtualAddress) % siSysInfo.dwPageSize){
+                    dest = codeBase + section->VirtualAddress;
+                }
                 section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
                 memset(dest, 0, size);
             }
@@ -116,6 +123,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             section->SizeOfRawData,
                             MEM_COMMIT,
                             PAGE_READWRITE);
+        if((POINTER_TYPE)(codeBase + section->VirtualAddress) % siSysInfo.dwPageSize){
+            dest = codeBase + section->VirtualAddress;
+        }
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
         section->Misc.PhysicalAddress = (DWORD) (POINTER_TYPE) dest;
     }
@@ -139,28 +149,50 @@ FinalizeSections(PMEMORYMODULE module)
 {
     int i;
     PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
+	PIMAGE_SECTION_HEADER lastSection = NULL;
+	SYSTEM_INFO siSysInfo;
+	DWORD Characteristics;
 #ifdef _WIN64
     POINTER_TYPE imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
 #else
     #define imageOffset 0
 #endif
 
+	GetNativeSystemInfo(&siSysInfo);
+
     // loop through all sections and change access flags
     for (i=0; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         DWORD protect, oldProtect, size;
-        int executable = (section->Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
-        int readable =   (section->Characteristics & IMAGE_SCN_MEM_READ) != 0;
-        int writeable =  (section->Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+		BOOL bInOnePage = FALSE;
+		int executable, readable, writeable;
 
-        if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+		if (lastSection != NULL){
+			if (ALIGN_DOWN_BY(lastSection->Misc.PhysicalAddress|imageOffset, siSysInfo.dwPageSize) == 
+				ALIGN_DOWN_BY(section->Misc.PhysicalAddress|imageOffset, siSysInfo.dwPageSize)){
+				//this section and last section are in same page
+				Characteristics |= lastSection->Characteristics;
+				bInOnePage = TRUE;
+			}else{
+				Characteristics = section->Characteristics;
+			}
+		}else{
+			Characteristics = section->Characteristics;
+		}
+
+        executable = (Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
+        readable =   (Characteristics & IMAGE_SCN_MEM_READ) != 0;
+        writeable =  (Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+
+        if (Characteristics & IMAGE_SCN_MEM_DISCARDABLE && !bInOnePage) {
             // section is not needed any more and can safely be freed
             VirtualFree((LPVOID)((POINTER_TYPE)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, MEM_DECOMMIT);
+			lastSection = section;
             continue;
         }
 
         // determine protection flags based on characteristics
         protect = ProtectionFlags[executable][readable][writeable];
-        if (section->Characteristics & IMAGE_SCN_MEM_NOT_CACHED) {
+        if (Characteristics & IMAGE_SCN_MEM_NOT_CACHED) {
             protect |= PAGE_NOCACHE;
         }
 
@@ -173,6 +205,8 @@ FinalizeSections(PMEMORYMODULE module)
                 size = module->headers->OptionalHeader.SizeOfUninitializedData;
             }
         }
+
+		lastSection = section;
 
         if (size > 0) {
             // change memory access flags
