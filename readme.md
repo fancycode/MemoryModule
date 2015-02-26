@@ -1,6 +1,8 @@
 MemoryModule
 ============
 
+[![Build Status](https://travis-ci.org/fancycode/MemoryModule.svg?branch=master)](https://travis-ci.org/fancycode/MemoryModule)
+
 The default windows API functions to load external libraries into a program
 (`LoadLibrary`, `LoadLibraryEx`) only work with files on the filesystem.  It's
 therefore impossible to load a DLL from memory.
