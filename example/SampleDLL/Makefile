@@ -6,7 +6,7 @@ PLATFORM = i686
 endif
 CC = $(PLATFORM)-w64-mingw32-g++
 CXX = $(PLATFORM)-w64-mingw32-g++
-LINK = $(PLATFORM)-w64-mingw32-ld
+LINK = $(PLATFORM)-w64-mingw32-g++
 RC = $(PLATFORM)-w64-mingw32-windres
 else
 CC = g++
