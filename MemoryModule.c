@@ -633,7 +633,6 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 
 void MemoryFreeLibrary(HMEMORYMODULE mod)
 {
-    int i;
     PMEMORYMODULE module = (PMEMORYMODULE)mod;
 
     if (module == NULL) {
@@ -647,6 +646,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 
     if (module->modules != NULL) {
         // free previously opened libraries
+        int i;
         for (i=0; i<module->numModules; i++) {
             if (module->modules[i] != NULL) {
                 module->freeLibrary(module->modules[i], module->userdata);
