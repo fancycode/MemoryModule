@@ -52,9 +52,9 @@ typedef struct {
     unsigned char *codeBase;
     HCUSTOMMODULE *modules;
     int numModules;
-    int initialized;
-    int isDLL;
-    int isRelocated;
+    BOOL initialized;
+    BOOL isDLL;
+    BOOL isRelocated;
     CustomLoadLibraryFunc loadLibrary;
     CustomGetProcAddressFunc getProcAddress;
     CustomFreeLibraryFunc freeLibrary;
@@ -90,7 +90,7 @@ OutputLastError(const char *msg)
 }
 #endif
 
-static void
+static BOOL
 CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMODULE module)
 {
     int i, size;
@@ -107,6 +107,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     size,
                     MEM_COMMIT,
                     PAGE_READWRITE);
+                if (dest == NULL) {
+                    return FALSE;
+                }
 
                 // Always use position from file to support alignments smaller
                 // than page size.
@@ -124,6 +127,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             section->SizeOfRawData,
                             MEM_COMMIT,
                             PAGE_READWRITE);
+        if (dest == NULL) {
+            return FALSE;
+        }
 
         // Always use position from file to support alignments smaller
         // than page size.
@@ -131,6 +137,8 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
         section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
     }
+
+    return TRUE;
 }
 
 // Protection flags for memory pages (Executable, Readable, Writeable)
@@ -162,9 +170,9 @@ GetRealSectionSize(PMEMORYMODULE module, PIMAGE_SECTION_HEADER section) {
 static BOOL
 FinalizeSection(PMEMORYMODULE module, PSECTIONFINALIZEDATA sectionData) {
     DWORD protect, oldProtect;
-    int executable;
-    int readable;
-    int writeable;
+    BOOL executable;
+    BOOL readable;
+    BOOL writeable;
 
     if (sectionData->size == 0) {
         return TRUE;
@@ -203,7 +211,7 @@ FinalizeSection(PMEMORYMODULE module, PSECTIONFINALIZEDATA sectionData) {
     return TRUE;
 }
 
-static void
+static BOOL
 FinalizeSections(PMEMORYMODULE module)
 {
     int i;
@@ -240,151 +248,163 @@ FinalizeSections(PMEMORYMODULE module)
             continue;
         }
 
-        FinalizeSection(module, &sectionData);
+        if (!FinalizeSection(module, &sectionData)) {
+            return FALSE;
+        }
         sectionData.address = sectionAddress;
         sectionData.alignedAddress = alignedAddress;
         sectionData.size = sectionSize;
         sectionData.characteristics = section->Characteristics;
     }
     sectionData.last = TRUE;
-    FinalizeSection(module, &sectionData);
+    if (!FinalizeSection(module, &sectionData)) {
+        return FALSE;
+    }
 #ifndef _WIN64
 #undef imageOffset
 #endif
+    return TRUE;
 }
 
-static void
+static BOOL
 ExecuteTLS(PMEMORYMODULE module)
 {
     unsigned char *codeBase = module->codeBase;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_TLS);
-    if (directory->VirtualAddress > 0) {
-        PIMAGE_TLS_DIRECTORY tls = (PIMAGE_TLS_DIRECTORY) (codeBase + directory->VirtualAddress);
-        PIMAGE_TLS_CALLBACK* callback = (PIMAGE_TLS_CALLBACK *) tls->AddressOfCallBacks;
-        if (callback) {
-            while (*callback) {
-                (*callback)((LPVOID) codeBase, DLL_PROCESS_ATTACH, NULL);
-                callback++;
-            }
+    if (directory->VirtualAddress == 0) {
+        return TRUE;
+    }
+
+    PIMAGE_TLS_DIRECTORY tls = (PIMAGE_TLS_DIRECTORY) (codeBase + directory->VirtualAddress);
+    PIMAGE_TLS_CALLBACK* callback = (PIMAGE_TLS_CALLBACK *) tls->AddressOfCallBacks;
+    if (callback) {
+        while (*callback) {
+            (*callback)((LPVOID) codeBase, DLL_PROCESS_ATTACH, NULL);
+            callback++;
         }
     }
+    return TRUE;
 }
 
-static int
+static BOOL
 PerformBaseRelocation(PMEMORYMODULE module, SIZE_T delta)
 {
-    DWORD i;
     unsigned char *codeBase = module->codeBase;
-    int result = 0;
+    PIMAGE_BASE_RELOCATION relocation;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-    if (directory->Size > 0) {
-        PIMAGE_BASE_RELOCATION relocation = (PIMAGE_BASE_RELOCATION) (codeBase + directory->VirtualAddress);
-        for (; relocation->VirtualAddress > 0; ) {
-            unsigned char *dest = codeBase + relocation->VirtualAddress;
-            unsigned short *relInfo = (unsigned short *)((unsigned char *)relocation + IMAGE_SIZEOF_BASE_RELOCATION);
-            for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++) {
-                DWORD *patchAddrHL;
-#ifdef _WIN64
-                ULONGLONG *patchAddr64;
-#endif
-                int type, offset;
-
-                // the upper 4 bits define the type of relocation
-                type = *relInfo >> 12;
-                // the lower 12 bits define the offset
-                offset = *relInfo & 0xfff;
-
-                switch (type)
-                {
-                case IMAGE_REL_BASED_ABSOLUTE:
-                    // skip relocation
-                    break;
-
-                case IMAGE_REL_BASED_HIGHLOW:
-                    // change complete 32 bit address
-                    patchAddrHL = (DWORD *) (dest + offset);
-                    *patchAddrHL += (DWORD) delta;
-                    break;
-
-#ifdef _WIN64
-                case IMAGE_REL_BASED_DIR64:
-                    patchAddr64 = (ULONGLONG *) (dest + offset);
-                    *patchAddr64 += (ULONGLONG) delta;
-                    break;
-#endif
-
-                default:
-                    //printf("Unknown relocation: %d\n", type);
-                    break;
-                }
-            }
-
-            // advance to next relocation block
-            relocation = (PIMAGE_BASE_RELOCATION) (((char *) relocation) + relocation->SizeOfBlock);
-        }
-        result = 1;
+    if (directory->Size == 0) {
+        return (delta == 0);
     }
-    return result;
+
+    relocation = (PIMAGE_BASE_RELOCATION) (codeBase + directory->VirtualAddress);
+    for (; relocation->VirtualAddress > 0; ) {
+        DWORD i;
+        unsigned char *dest = codeBase + relocation->VirtualAddress;
+        unsigned short *relInfo = (unsigned short *)((unsigned char *)relocation + IMAGE_SIZEOF_BASE_RELOCATION);
+        for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++) {
+            DWORD *patchAddrHL;
+#ifdef _WIN64
+            ULONGLONG *patchAddr64;
+#endif
+            int type, offset;
+
+            // the upper 4 bits define the type of relocation
+            type = *relInfo >> 12;
+            // the lower 12 bits define the offset
+            offset = *relInfo & 0xfff;
+
+            switch (type)
+            {
+            case IMAGE_REL_BASED_ABSOLUTE:
+                // skip relocation
+                break;
+
+            case IMAGE_REL_BASED_HIGHLOW:
+                // change complete 32 bit address
+                patchAddrHL = (DWORD *) (dest + offset);
+                *patchAddrHL += (DWORD) delta;
+                break;
+
+#ifdef _WIN64
+            case IMAGE_REL_BASED_DIR64:
+                patchAddr64 = (ULONGLONG *) (dest + offset);
+                *patchAddr64 += (ULONGLONG) delta;
+                break;
+#endif
+
+            default:
+                //printf("Unknown relocation: %d\n", type);
+                break;
+            }
+        }
+
+        // advance to next relocation block
+        relocation = (PIMAGE_BASE_RELOCATION) (((char *) relocation) + relocation->SizeOfBlock);
+    }
+    return TRUE;
 }
 
-static int
+static BOOL
 BuildImportTable(PMEMORYMODULE module)
 {
-    int result=1;
     unsigned char *codeBase = module->codeBase;
-    HCUSTOMMODULE *tmp;
+    PIMAGE_IMPORT_DESCRIPTOR importDesc;
+    BOOL result = TRUE;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_IMPORT);
-    if (directory->Size > 0) {
-        PIMAGE_IMPORT_DESCRIPTOR importDesc = (PIMAGE_IMPORT_DESCRIPTOR) (codeBase + directory->VirtualAddress);
-        for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
-            uintptr_t *thunkRef;
-            FARPROC *funcRef;
-            HCUSTOMMODULE handle = module->loadLibrary((LPCSTR) (codeBase + importDesc->Name), module->userdata);
-            if (handle == NULL) {
-                SetLastError(ERROR_MOD_NOT_FOUND);
-                result = 0;
-                break;
-            }
+    if (directory->Size == 0) {
+        return TRUE;
+    }
 
-            tmp = (HCUSTOMMODULE *) realloc(module->modules, (module->numModules+1)*(sizeof(HCUSTOMMODULE)));
-            if (tmp == NULL) {
-                module->freeLibrary(handle, module->userdata);
-                SetLastError(ERROR_OUTOFMEMORY);
-                result = 0;
-                break;
-            }
-            module->modules = tmp;
+    importDesc = (PIMAGE_IMPORT_DESCRIPTOR) (codeBase + directory->VirtualAddress);
+    for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name; importDesc++) {
+        uintptr_t *thunkRef;
+        FARPROC *funcRef;
+        HCUSTOMMODULE *tmp;
+        HCUSTOMMODULE handle = module->loadLibrary((LPCSTR) (codeBase + importDesc->Name), module->userdata);
+        if (handle == NULL) {
+            SetLastError(ERROR_MOD_NOT_FOUND);
+            result = FALSE;
+            break;
+        }
 
-            module->modules[module->numModules++] = handle;
-            if (importDesc->OriginalFirstThunk) {
-                thunkRef = (uintptr_t *) (codeBase + importDesc->OriginalFirstThunk);
-                funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
+        tmp = (HCUSTOMMODULE *) realloc(module->modules, (module->numModules+1)*(sizeof(HCUSTOMMODULE)));
+        if (tmp == NULL) {
+            module->freeLibrary(handle, module->userdata);
+            SetLastError(ERROR_OUTOFMEMORY);
+            result = FALSE;
+            break;
+        }
+        module->modules = tmp;
+
+        module->modules[module->numModules++] = handle;
+        if (importDesc->OriginalFirstThunk) {
+            thunkRef = (uintptr_t *) (codeBase + importDesc->OriginalFirstThunk);
+            funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
+        } else {
+            // no hint table
+            thunkRef = (uintptr_t *) (codeBase + importDesc->FirstThunk);
+            funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
+        }
+        for (; *thunkRef; thunkRef++, funcRef++) {
+            if (IMAGE_SNAP_BY_ORDINAL(*thunkRef)) {
+                *funcRef = module->getProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef), module->userdata);
             } else {
-                // no hint table
-                thunkRef = (uintptr_t *) (codeBase + importDesc->FirstThunk);
-                funcRef = (FARPROC *) (codeBase + importDesc->FirstThunk);
+                PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME) (codeBase + (*thunkRef));
+                *funcRef = module->getProcAddress(handle, (LPCSTR)&thunkData->Name, module->userdata);
             }
-            for (; *thunkRef; thunkRef++, funcRef++) {
-                if (IMAGE_SNAP_BY_ORDINAL(*thunkRef)) {
-                    *funcRef = module->getProcAddress(handle, (LPCSTR)IMAGE_ORDINAL(*thunkRef), module->userdata);
-                } else {
-                    PIMAGE_IMPORT_BY_NAME thunkData = (PIMAGE_IMPORT_BY_NAME) (codeBase + (*thunkRef));
-                    *funcRef = module->getProcAddress(handle, (LPCSTR)&thunkData->Name, module->userdata);
-                }
-                if (*funcRef == 0) {
-                    result = 0;
-                    break;
-                }
-            }
-
-            if (!result) {
-                module->freeLibrary(handle, module->userdata);
-                SetLastError(ERROR_PROC_NOT_FOUND);
+            if (*funcRef == 0) {
+                result = FALSE;
                 break;
             }
+        }
+
+        if (!result) {
+            module->freeLibrary(handle, module->userdata);
+            SetLastError(ERROR_PROC_NOT_FOUND);
+            break;
         }
     }
 
@@ -427,7 +447,6 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     PIMAGE_NT_HEADERS old_header;
     unsigned char *code, *headers;
     SIZE_T locationDelta;
-    BOOL successfull;
     SYSTEM_INFO sysInfo;
 
     dos_header = (PIMAGE_DOS_HEADER)data;
@@ -487,7 +506,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->codeBase = code;
     result->numModules = 0;
     result->modules = NULL;
-    result->initialized = 0;
+    result->initialized = FALSE;
     result->isDLL = (old_header->FileHeader.Characteristics & IMAGE_FILE_DLL) != 0;
     result->loadLibrary = loadLibrary;
     result->getProcAddress = getProcAddress;
@@ -511,14 +530,16 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->headers->OptionalHeader.ImageBase = (uintptr_t)code;
 
     // copy sections from DLL file block to new memory location
-    CopySections((const unsigned char *) data, old_header, result);
+    if (!CopySections((const unsigned char *) data, old_header, result)) {
+        goto error;
+    }
 
     // adjust base address of imported data
     locationDelta = (SIZE_T)(code - old_header->OptionalHeader.ImageBase);
     if (locationDelta != 0) {
         result->isRelocated = PerformBaseRelocation(result, locationDelta);
     } else {
-        result->isRelocated = 1;
+        result->isRelocated = TRUE;
     }
 
     // load required dlls and adjust function table of imports
@@ -528,22 +549,26 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 
     // mark memory pages depending on section headers and release
     // sections that are marked as "discardable"
-    FinalizeSections(result);
+    if (!FinalizeSections(result)) {
+        goto error;
+    }
 
     // TLS callbacks are executed BEFORE the main loading
-    ExecuteTLS(result);
+    if (!ExecuteTLS(result)) {
+        goto error;
+    }
 
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
         if (result->isDLL) {
             DllEntryProc DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
             // notify library about attaching to process
-            successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
+            BOOL successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
             if (!successfull) {
                 SetLastError(ERROR_DLL_INIT_FAILED);
                 goto error;
             }
-            result->initialized = 1;
+            result->initialized = TRUE;
         } else {
             result->exeEntry = (ExeEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
         }
@@ -611,32 +636,32 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
     int i;
     PMEMORYMODULE module = (PMEMORYMODULE)mod;
 
-    if (module != NULL) {
-        if (module->initialized != 0) {
-            // notify library about detaching from process
-            DllEntryProc DllEntry = (DllEntryProc) (module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
-            (*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
-            module->initialized = 0;
-        }
-
-        if (module->modules != NULL) {
-            // free previously opened libraries
-            for (i=0; i<module->numModules; i++) {
-                if (module->modules[i] != NULL) {
-                    module->freeLibrary(module->modules[i], module->userdata);
-                }
-            }
-
-            free(module->modules);
-        }
-
-        if (module->codeBase != NULL) {
-            // release memory of library
-            VirtualFree(module->codeBase, 0, MEM_RELEASE);
-        }
-
-        HeapFree(GetProcessHeap(), 0, module);
+    if (module == NULL) {
+        return;
     }
+    if (module->initialized) {
+        // notify library about detaching from process
+        DllEntryProc DllEntry = (DllEntryProc) (module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
+        (*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
+    }
+
+    if (module->modules != NULL) {
+        // free previously opened libraries
+        for (i=0; i<module->numModules; i++) {
+            if (module->modules[i] != NULL) {
+                module->freeLibrary(module->modules[i], module->userdata);
+            }
+        }
+
+        free(module->modules);
+    }
+
+    if (module->codeBase != NULL) {
+        // release memory of library
+        VirtualFree(module->codeBase, 0, MEM_RELEASE);
+    }
+
+    HeapFree(GetProcessHeap(), 0, module);
 }
 
 int MemoryCallEntryPoint(HMEMORYMODULE mod)
