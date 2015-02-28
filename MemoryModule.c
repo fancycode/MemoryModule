@@ -60,9 +60,19 @@ typedef struct {
     CustomFreeLibraryFunc freeLibrary;
     void *userdata;
     ExeEntryProc exeEntry;
+    DWORD pageSize;
 } MEMORYMODULE, *PMEMORYMODULE;
 
+typedef struct {
+    LPVOID address;
+    LPVOID alignedAddress;
+    DWORD size;
+    DWORD characteristics;
+    BOOL last;
+} SECTIONFINALIZEDATA, *PSECTIONFINALIZEDATA;
+
 #define GET_HEADER_DICTIONARY(module, idx)  &(module)->headers->OptionalHeader.DataDirectory[idx]
+#define ALIGN_DOWN(address, alignment)      (LPVOID)((uintptr_t)(address) & ~((alignment) - 1))
 
 #ifdef DEBUG_OUTPUT
 static void
@@ -98,6 +108,9 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                     MEM_COMMIT,
                     PAGE_READWRITE);
 
+                // Always use position from file to support alignments smaller
+                // than page size.
+                dest = codeBase + section->VirtualAddress;
                 section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
                 memset(dest, 0, size);
             }
@@ -111,6 +124,10 @@ CopySections(const unsigned char *data, PIMAGE_NT_HEADERS old_headers, PMEMORYMO
                             section->SizeOfRawData,
                             MEM_COMMIT,
                             PAGE_READWRITE);
+
+        // Always use position from file to support alignments smaller
+        // than page size.
+        dest = codeBase + section->VirtualAddress;
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
         section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
     }
@@ -129,6 +146,63 @@ static int ProtectionFlags[2][2][2] = {
     },
 };
 
+static DWORD
+GetRealSectionSize(PMEMORYMODULE module, PIMAGE_SECTION_HEADER section) {
+    DWORD size = section->SizeOfRawData;
+    if (size == 0) {
+        if (section->Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) {
+            size = module->headers->OptionalHeader.SizeOfInitializedData;
+        } else if (section->Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA) {
+            size = module->headers->OptionalHeader.SizeOfUninitializedData;
+        }
+    }
+    return size;
+}
+
+static BOOL
+FinalizeSection(PMEMORYMODULE module, PSECTIONFINALIZEDATA sectionData) {
+    DWORD protect, oldProtect;
+    int executable;
+    int readable;
+    int writeable;
+
+    if (sectionData->size == 0) {
+        return TRUE;
+    }
+
+    if (sectionData->characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
+        // section is not needed any more and can safely be freed
+        if (sectionData->address == sectionData->alignedAddress &&
+            (sectionData->last ||
+             module->headers->OptionalHeader.SectionAlignment == module->pageSize ||
+             (sectionData->size % module->pageSize) == 0)
+           ) {
+            // Only allowed to decommit whole pages
+            VirtualFree(sectionData->address, sectionData->size, MEM_DECOMMIT);
+        }
+        return TRUE;
+    }
+
+    // determine protection flags based on characteristics
+    executable = (sectionData->characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
+    readable =   (sectionData->characteristics & IMAGE_SCN_MEM_READ) != 0;
+    writeable =  (sectionData->characteristics & IMAGE_SCN_MEM_WRITE) != 0;
+    protect = ProtectionFlags[executable][readable][writeable];
+    if (sectionData->characteristics & IMAGE_SCN_MEM_NOT_CACHED) {
+        protect |= PAGE_NOCACHE;
+    }
+
+    // change memory access flags
+    if (VirtualProtect(sectionData->address, sectionData->size, protect, &oldProtect) == 0) {
+#ifdef DEBUG_OUTPUT
+        OutputLastError("Error protecting memory page")
+#endif
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 static void
 FinalizeSections(PMEMORYMODULE module)
 {
@@ -139,45 +213,41 @@ FinalizeSections(PMEMORYMODULE module)
 #else
     #define imageOffset 0
 #endif
+    SECTIONFINALIZEDATA sectionData;
+    sectionData.address = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
+    sectionData.alignedAddress = ALIGN_DOWN(sectionData.address, module->pageSize);
+    sectionData.size = GetRealSectionSize(module, section);
+    sectionData.characteristics = section->Characteristics;
+    sectionData.last = FALSE;
+    section++;
 
     // loop through all sections and change access flags
-    for (i=0; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
-        DWORD protect, oldProtect, size;
-        int executable = (section->Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
-        int readable =   (section->Characteristics & IMAGE_SCN_MEM_READ) != 0;
-        int writeable =  (section->Characteristics & IMAGE_SCN_MEM_WRITE) != 0;
-
-        if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) {
-            // section is not needed any more and can safely be freed
-            VirtualFree((LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset), section->SizeOfRawData, MEM_DECOMMIT);
+    for (i=1; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
+        LPVOID sectionAddress = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
+        LPVOID alignedAddress = ALIGN_DOWN(sectionAddress, module->pageSize);
+        DWORD sectionSize = GetRealSectionSize(module, section);
+        // Combine access flags of all sections that share a page
+        // TODO(fancycode): We currently share flags of a trailing large section
+        //   with the page of a first small section. This should be optimized.
+        if (sectionData.alignedAddress == alignedAddress || (uintptr_t) sectionData.address + sectionData.size > (uintptr_t) alignedAddress) {
+            // Section shares page with previous
+            if ((section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0 || (sectionData.characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0) {
+                sectionData.characteristics = (sectionData.characteristics | section->Characteristics) & ~IMAGE_SCN_MEM_DISCARDABLE;
+            } else {
+                sectionData.characteristics |= section->Characteristics;
+            }
+            sectionData.size = (((uintptr_t)sectionAddress) + sectionSize) - (uintptr_t) sectionData.address;
             continue;
         }
 
-        // determine protection flags based on characteristics
-        protect = ProtectionFlags[executable][readable][writeable];
-        if (section->Characteristics & IMAGE_SCN_MEM_NOT_CACHED) {
-            protect |= PAGE_NOCACHE;
-        }
-
-        // determine size of region
-        size = section->SizeOfRawData;
-        if (size == 0) {
-            if (section->Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) {
-                size = module->headers->OptionalHeader.SizeOfInitializedData;
-            } else if (section->Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA) {
-                size = module->headers->OptionalHeader.SizeOfUninitializedData;
-            }
-        }
-
-        if (size > 0) {
-            // change memory access flags
-            if (VirtualProtect((LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset), size, protect, &oldProtect) == 0)
-#ifdef DEBUG_OUTPUT
-                OutputLastError("Error protecting memory page")
-#endif
-            ;
-        }
+        FinalizeSection(module, &sectionData);
+        sectionData.address = sectionAddress;
+        sectionData.alignedAddress = alignedAddress;
+        sectionData.size = sectionSize;
+        sectionData.characteristics = section->Characteristics;
     }
+    sectionData.last = TRUE;
+    FinalizeSection(module, &sectionData);
 #ifndef _WIN64
 #undef imageOffset
 #endif
@@ -358,6 +428,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     unsigned char *code, *headers;
     SIZE_T locationDelta;
     BOOL successfull;
+    SYSTEM_INFO sysInfo;
 
     dos_header = (PIMAGE_DOS_HEADER)data;
     if (dos_header->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -376,6 +447,12 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 #else
     if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
 #endif
+        SetLastError(ERROR_BAD_EXE_FORMAT);
+        return NULL;
+    }
+
+    if (old_header->OptionalHeader.SectionAlignment & 1) {
+        // Only support section alignments that are a multiple of 2
         SetLastError(ERROR_BAD_EXE_FORMAT);
         return NULL;
     }
@@ -416,6 +493,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     result->getProcAddress = getProcAddress;
     result->freeLibrary = freeLibrary;
     result->userdata = userdata;
+
+    GetNativeSystemInfo(&sysInfo);
+    result->pageSize = sysInfo.dwPageSize;
 
     // commit memory for headers
     headers = (unsigned char *)VirtualAlloc(code,
