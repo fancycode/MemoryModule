@@ -825,6 +825,9 @@ HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE module, LPCTSTR name, LPCTSTR typ
 DWORD MemorySizeofResource(HMEMORYMODULE module, HMEMORYRSRC resource)
 {
     PIMAGE_RESOURCE_DATA_ENTRY entry = (PIMAGE_RESOURCE_DATA_ENTRY) resource;
+    if (entry == NULL) {
+        return 0;
+    }
 
     return entry->Size;
 }
@@ -833,6 +836,9 @@ LPVOID MemoryLoadResource(HMEMORYMODULE module, HMEMORYRSRC resource)
 {
     unsigned char *codeBase = ((PMEMORYMODULE) module)->codeBase;
     PIMAGE_RESOURCE_DATA_ENTRY entry = (PIMAGE_RESOURCE_DATA_ENTRY) resource;
+    if (entry == NULL) {
+        return NULL;
+    }
 
     return codeBase + entry->OffsetToData;
 }
