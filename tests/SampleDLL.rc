@@ -1,0 +1,34 @@
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "fancy.code"
+      VALUE "FileDescription", "SampleDLL"
+      VALUE "FileVersion", "1.0"
+      VALUE "InternalName", "SampleDLL"
+      VALUE "LegalCopyright", "Copyright (c) 2004-2015 Joachim Bauch"
+      VALUE "OriginalFilename", "SampleDLL.dll"
+      VALUE "ProductName", "MemoryModule"
+      VALUE "ProductVersion", "0.0.4"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
+
+
+#define IDS_HELLO   1
+#define IDS_WORLD   20
+
+STRINGTABLE
+{
+    IDS_HELLO,  "Hello"
+    IDS_WORLD,  "World!"
+}

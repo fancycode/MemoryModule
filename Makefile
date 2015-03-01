@@ -1,4 +1,4 @@
-SUBDIRS = example
+SUBDIRS = example tests
 
 .PHONY: subdirs $(SUBDIRS)
 
@@ -13,5 +13,8 @@ clean: $(CLEANDIRS)
 $(CLEANDIRS): 
 	$(MAKE) -C $(@:clean-%=%) clean
 
+test:
+	$(MAKE) -C tests test
+
 .PHONY: subdirs $(INSTALLDIRS)
-.PHONY: clean
+.PHONY: clean test

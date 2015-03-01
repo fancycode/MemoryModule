@@ -19,3 +19,4 @@ script:
   - cd example/DllLoader
   - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoader.exe
   - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoaderLoader.exe
+  - make test PLATFORM=$PLATFORM UNICODE=$UNICODE

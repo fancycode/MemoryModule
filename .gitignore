@@ -1,3 +1,5 @@
 *.o
 *.obj
 *.exe
+tests/*.dll
+tests/*.res
