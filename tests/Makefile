@@ -46,7 +46,6 @@ TEST_DLLS = \
 	test-align-600.dll \
 	test-align-800.dll \
 	test-align-900.dll \
-	test-align-1000.dll \
 	test-relocate.dll \
 
 LOADDLL_OBJ = LoadDll.o ../MemoryModule.o
