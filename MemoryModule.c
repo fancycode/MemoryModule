@@ -496,7 +496,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
         }
     }
 
-    result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), 0, sizeof(MEMORYMODULE));
+    result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORYMODULE));
     if (result == NULL) {
         SetLastError(ERROR_OUTOFMEMORY);
         VirtualFree(code, 0, MEM_RELEASE);
@@ -504,9 +504,6 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
     }
 
     result->codeBase = code;
-    result->numModules = 0;
-    result->modules = NULL;
-    result->initialized = FALSE;
     result->isDLL = (old_header->FileHeader.Characteristics & IMAGE_FILE_DLL) != 0;
     result->loadLibrary = loadLibrary;
     result->getProcAddress = getProcAddress;
