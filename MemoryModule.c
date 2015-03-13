@@ -498,8 +498,8 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data,
 
     result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORYMODULE));
     if (result == NULL) {
-        SetLastError(ERROR_OUTOFMEMORY);
         VirtualFree(code, 0, MEM_RELEASE);
+        SetLastError(ERROR_OUTOFMEMORY);
         return NULL;
     }
 
