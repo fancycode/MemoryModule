@@ -602,15 +602,20 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
         return NULL;
     }
 
-    // search function name in list of exported names
-    nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
-    ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
-    for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++) {
-        if (_stricmp(name, (const char *) (codeBase + (*nameRef))) == 0) {
-            idx = *ordinal;
-            break;
-        }
-    }
+	if (0 == HIWORD((DWORD)name)) {
+		idx = (DWORD)name - exports->Base;
+	}
+	else {
+		// search function name in list of exported names
+		nameRef = (DWORD *)(codeBase + exports->AddressOfNames);
+		ordinal = (WORD *)(codeBase + exports->AddressOfNameOrdinals);
+		for (i = 0; i < exports->NumberOfNames; i++, nameRef++, ordinal++) {
+			if (_stricmp(name, (const char *)(codeBase + (*nameRef))) == 0) {
+				idx = *ordinal;
+				break;
+			}
+		}
+	}
 
     if (idx == -1) {
         // exported symbol not found
