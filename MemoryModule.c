@@ -602,8 +602,8 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
         return NULL;
     }
 
-	if (0 == HIWORD((DWORD)name)) {
-		idx = (DWORD)name - exports->Base;
+	if (0 == HIWORD(name)) {
+		idx = LOWORD(name) - exports->Base;
 	}
 	else {
 		// search function name in list of exported names
