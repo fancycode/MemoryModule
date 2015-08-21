@@ -1,10 +1,14 @@
 sudo: false
 
 env:
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=
-  - PLATFORM=i686 WINE=wine UNICODE=
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=1
-  - PLATFORM=i686 WINE=wine UNICODE=1
+  - PLATFORM=x86_64 WINE=wine64 UNICODE=  CMAKE=
+  - PLATFORM=i686   WINE=wine   UNICODE=  CMAKE=
+  - PLATFORM=x86_64 WINE=wine64 UNICODE=1 CMAKE=
+  - PLATFORM=i686   WINE=wine   UNICODE=1 CMAKE=
+  - PLATFORM=x86_64 WINE=wine64 UNICODE=  CMAKE=1
+  - PLATFORM=i686   WINE=wine   UNICODE=  CMAKE=1
+  - PLATFORM=x86_64 WINE=wine64 UNICODE=1 CMAKE=1
+  - PLATFORM=i686   WINE=wine   UNICODE=1 CMAKE=1
 
 language: cpp
 
@@ -17,6 +21,7 @@ addons:
     packages:
     - binutils-mingw-w64-i686
     - binutils-mingw-w64-x86-64
+    - cmake
     - mingw-w64-dev
     - g++-mingw-w64-i686
     - g++-mingw-w64-x86-64
@@ -24,9 +29,13 @@ addons:
     - gcc-mingw-w64-x86-64
     - wine
 
+before_script:
+  - if [ ! -z "$CMAKE" ]; then cmake -DPLATFORM=$PLATFORM -D UNICODE=$UNICODE -H. -B.; fi
+
 script:
-  - make PLATFORM=$PLATFORM UNICODE=$UNICODE
-  - make test PLATFORM=$PLATFORM UNICODE=$UNICODE
+  - if [ -z "$CMAKE" ]; then make PLATFORM=$PLATFORM UNICODE=$UNICODE; fi
+  - if [ -z "$CMAKE" ]; then make test PLATFORM=$PLATFORM UNICODE=$UNICODE; fi
+  - if [ ! -z "$CMAKE" ]; then cmake --build .; fi
   - cd example/DllLoader
   - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoader.exe
   - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoaderLoader.exe
