@@ -25,7 +25,11 @@ if (NOT MSVC)
     set (CMAKE_RC_COMPILE_OBJECT "${CMAKE_RC_COMPILER} -O coff -I${CMAKE_CURRENT_SOURCE_DIR} <SOURCE> <OBJECT>")
 endif ()
 
-add_definitions ("-Wall")
+if (NOT MSVC)
+    add_definitions ("-Wall")
+else ()
+    add_definitions ("-W4")
+endif ()
 
 option(UNICODE "Compile with UNICODE support" OFF)
 if (UNICODE)
