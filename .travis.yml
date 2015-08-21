@@ -1,3 +1,5 @@
+sudo: false
+
 env:
   - PLATFORM=x86_64 WINE=wine64 UNICODE=
   - PLATFORM=i686 WINE=wine UNICODE=
@@ -8,11 +10,19 @@ language: cpp
 
 cache:
   - apt
+  - ccache
 
-before_install:
-  - sudo apt-get update -qq
-  - sh -c "if [ '$PLATFORM' = 'i686'   ]; then sudo apt-get install -qq wine gcc-mingw-w64-i686   g++-mingw-w64-i686   binutils-mingw-w64-i686   mingw-w64-dev; fi"
-  - sh -c "if [ '$PLATFORM' = 'x86_64' ]; then sudo apt-get install -qq wine gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-dev; fi"
+addons:
+  apt:
+    packages:
+    - binutils-mingw-w64-i686
+    - binutils-mingw-w64-x86-64
+    - mingw-w64-dev
+    - g++-mingw-w64-i686
+    - g++-mingw-w64-x86-64
+    - gcc-mingw-w64-i686
+    - gcc-mingw-w64-x86-64
+    - wine
 
 script:
   - make PLATFORM=$PLATFORM UNICODE=$UNICODE
