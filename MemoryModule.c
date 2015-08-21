@@ -584,7 +584,7 @@ error:
 FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 {
     unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
-    int idx;
+    DWORD idx;
     PIMAGE_EXPORT_DIRECTORY exports;
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY((PMEMORYMODULE)module, IMAGE_DIRECTORY_ENTRY_EXPORT);
     if (directory->Size == 0) {
@@ -613,22 +613,23 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
         DWORD i;
         DWORD *nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
         WORD *ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
-        idx = -1;
+        BOOL found = FALSE;
         for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++) {
             if (_stricmp(name, (const char *) (codeBase + (*nameRef))) == 0) {
                 idx = *ordinal;
+                found = TRUE;
                 break;
             }
         }
 
-        if (idx == -1) {
+        if (!found) {
             // exported symbol not found
             SetLastError(ERROR_PROC_NOT_FOUND);
             return NULL;
         }
     }
 
-    if ((DWORD)idx > exports->NumberOfFunctions) {
+    if (idx > exports->NumberOfFunctions) {
         // name <-> ordinal number don't match
         SetLastError(ERROR_PROC_NOT_FOUND);
         return NULL;
