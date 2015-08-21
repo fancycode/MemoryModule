@@ -24,11 +24,6 @@
  *
  */
 
-#ifndef __GNUC__
-// disable warnings about pointer <-> DWORD conversions
-#pragma warning( disable : 4311 4312 )
-#endif
-
 #include <windows.h>
 #include <winnt.h>
 #include <stddef.h>
