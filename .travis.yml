@@ -11,8 +11,7 @@ cache:
 
 before_install:
   - sudo apt-get update -qq
-  - sh -c "if [ '$PLATFORM' = 'i686'   ]; then sudo apt-get install -qq wine gcc-mingw-w64-i686   g++-mingw-w64-i686   binutils-mingw-w64-i686   mingw-w64-dev; fi"
-  - sh -c "if [ '$PLATFORM' = 'x86_64' ]; then sudo apt-get install -qq wine gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-dev; fi"
+  - sudo apt-get install -qq wine gcc-mingw-w64-$PLATFORM g++-mingw-w64-$PLATFORM binutils-mingw-w64-$PLATFORM mingw-w64-dev
 
 script:
   - make PLATFORM=$PLATFORM UNICODE=$UNICODE
