@@ -63,7 +63,8 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *,
     void *);
 
 /**
- * Get address of exported method.
+ * Get address of exported method. Supports loading both by name and by
+ * ordinal value.
  */
 FARPROC MemoryGetProcAddress(HMEMORYMODULE, LPCSTR);
 

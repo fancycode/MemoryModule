@@ -584,9 +584,7 @@ error:
 FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 {
     unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
-    int idx=-1;
-    DWORD i, *nameRef;
-    WORD *ordinal;
+    int idx;
     PIMAGE_EXPORT_DIRECTORY exports;
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY((PMEMORYMODULE)module, IMAGE_DIRECTORY_ENTRY_EXPORT);
     if (directory->Size == 0) {
@@ -602,20 +600,32 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
         return NULL;
     }
 
-    // search function name in list of exported names
-    nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
-    ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
-    for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++) {
-        if (_stricmp(name, (const char *) (codeBase + (*nameRef))) == 0) {
-            idx = *ordinal;
-            break;
+    if (HIWORD(name) == 0) {
+        // load function by ordinal value
+        if (LOWORD(name) < exports->Base) {
+            SetLastError(ERROR_PROC_NOT_FOUND);
+            return NULL;
         }
-    }
 
-    if (idx == -1) {
-        // exported symbol not found
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return NULL;
+        idx = LOWORD(name) - exports->Base;
+    } else {
+        // search function name in list of exported names
+        DWORD i;
+        DWORD *nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
+        WORD *ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
+        idx = -1;
+        for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++) {
+            if (_stricmp(name, (const char *) (codeBase + (*nameRef))) == 0) {
+                idx = *ordinal;
+                break;
+            }
+        }
+
+        if (idx == -1) {
+            // exported symbol not found
+            SetLastError(ERROR_PROC_NOT_FOUND);
+            return NULL;
+        }
     }
 
     if ((DWORD)idx > exports->NumberOfFunctions) {

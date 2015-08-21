@@ -16,6 +16,7 @@ BOOL LoadFromMemory(char *filename)
     size_t size;
     HMEMORYMODULE handle;
     addNumberProc addNumber;
+    addNumberProc addNumber2;
     HMEMORYRSRC resourceInfo;
     DWORD resourceSize;
     LPVOID resourceData;
@@ -45,8 +46,30 @@ BOOL LoadFromMemory(char *filename)
         goto exit;
     }
 
+    addNumber = (addNumberProc)MemoryGetProcAddress(handle, NULL);
+    if (addNumber != NULL) {
+        _tprintf(_T("MemoryGetProcAddress(NULL) returned %p\n"), addNumber);
+        result = FALSE;
+        goto exit;
+    }
+
+    addNumber = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCTSTR>(0xff));
+    if (addNumber != NULL) {
+        _tprintf(_T("MemoryGetProcAddress(0xff) returned %p\n"), addNumber);
+        result = FALSE;
+        goto exit;
+    }
+
     addNumber = (addNumberProc)MemoryGetProcAddress(handle, "addNumbers");
     _tprintf(_T("From memory: %d\n"), addNumber(1, 2));
+
+    // the DLL only exports one function, try to load by ordinal value
+    addNumber2 = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCTSTR>(0x01));
+    if (addNumber != addNumber2) {
+        _tprintf(_T("MemoryGetProcAddress(0x01) returned %p (expected %p)\n"), addNumber2, addNumber);
+        result = FALSE;
+        goto exit;
+    }
 
     resourceInfo = MemoryFindResource(handle, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
     _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
