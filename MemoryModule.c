@@ -270,14 +270,16 @@ static BOOL
 ExecuteTLS(PMEMORYMODULE module)
 {
     unsigned char *codeBase = module->codeBase;
+    PIMAGE_TLS_DIRECTORY tls;
+    PIMAGE_TLS_CALLBACK* callback;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_TLS);
     if (directory->VirtualAddress == 0) {
         return TRUE;
     }
 
-    PIMAGE_TLS_DIRECTORY tls = (PIMAGE_TLS_DIRECTORY) (codeBase + directory->VirtualAddress);
-    PIMAGE_TLS_CALLBACK* callback = (PIMAGE_TLS_CALLBACK *) tls->AddressOfCallBacks;
+    tls = (PIMAGE_TLS_DIRECTORY) (codeBase + directory->VirtualAddress);
+    callback = (PIMAGE_TLS_CALLBACK *) tls->AddressOfCallBacks;
     if (callback) {
         while (*callback) {
             (*callback)((LPVOID) codeBase, DLL_PROCESS_ATTACH, NULL);
