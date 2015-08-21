@@ -53,7 +53,7 @@ BOOL LoadFromMemory(char *filename)
         goto exit;
     }
 
-    addNumber = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCTSTR>(0xff));
+    addNumber = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCSTR>(0xff));
     if (addNumber != NULL) {
         _tprintf(_T("MemoryGetProcAddress(0xff) returned %p\n"), addNumber);
         result = FALSE;
@@ -64,7 +64,7 @@ BOOL LoadFromMemory(char *filename)
     _tprintf(_T("From memory: %d\n"), addNumber(1, 2));
 
     // the DLL only exports one function, try to load by ordinal value
-    addNumber2 = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCTSTR>(0x01));
+    addNumber2 = (addNumberProc)MemoryGetProcAddress(handle, reinterpret_cast<LPCSTR>(0x01));
     if (addNumber != addNumber2) {
         _tprintf(_T("MemoryGetProcAddress(0x01) returned %p (expected %p)\n"), addNumber2, addNumber);
         result = FALSE;
