@@ -729,32 +729,45 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             }
         }
     } else {
-#if !defined(UNICODE)
-        char *searchKey = NULL;
-        int searchKeyLength = 0;
+        LPCWSTR searchKey;
+        size_t searchKeyLen = _tcslen(key);
+#if defined(UNICODE)
+        searchKey = key;
+#else
+        // Resource names are always stored using 16bit characters, need to
+        // convert string we search for.
+#define MAX_LOCAL_KEY_LENGTH 2048
+        // In most cases resource names are short, so optimize for that by
+        // using a pre-allocated array.
+        wchar_t _searchKeySpace[MAX_LOCAL_KEY_LENGTH+1];
+        LPWSTR _searchKey;
+        if (searchKeyLen > MAX_LOCAL_KEY_LENGTH) {
+            size_t _searchKeySize = (searchKeyLen + 1) * sizeof(wchar_t);
+            _searchKey = (LPWSTR) malloc(_searchKeySize);
+            if (_searchKey == NULL) {
+                SetLastError(ERROR_OUTOFMEMORY);
+                return NULL;
+            }
+        } else {
+            _searchKey = &_searchKeySpace[0];
+        }
+
+        mbstowcs(_searchKey, key, searchKeyLen);
+        _searchKey[searchKeyLen] = 0;
+        searchKey = _searchKey;
 #endif
         start = 0;
         end = resources->NumberOfNamedEntries;
         while (end > start) {
-            // resource names are always stored using 16bit characters
             int cmp;
             PIMAGE_RESOURCE_DIR_STRING_U resourceString;
             middle = (start + end) >> 1;
             resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
-#if !defined(UNICODE)
-            if (searchKey == NULL || searchKeyLength < resourceString->Length) {
-                void *tmp = realloc(searchKey, resourceString->Length);
-                if (tmp == NULL) {
-                    break;
-                }
-
-                searchKey = (char *) tmp;
+            cmp = wcsnicmp(searchKey, resourceString->NameString, resourceString->Length);
+            if (cmp == 0) {
+                // Handle partial match
+                cmp = searchKeyLen - resourceString->Length;
             }
-            wcstombs(searchKey, resourceString->NameString, resourceString->Length);
-            cmp = strncmp(key, searchKey, resourceString->Length);
-#else
-            cmp = wcsncmp(key, resourceString->NameString, resourceString->Length);
-#endif
             if (cmp < 0) {
                 end = (middle != end ? middle : middle-1);
             } else if (cmp > 0) {
@@ -765,10 +778,12 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             }
         }
 #if !defined(UNICODE)
-        free(searchKey);
+        if (searchKeyLen > MAX_LOCAL_KEY_LENGTH) {
+            free(_searchKey);
+        }
+#undef MAX_LOCAL_KEY_LENGTH
 #endif
     }
-
 
     return result;
 }

@@ -32,3 +32,27 @@ STRINGTABLE
     IDS_HELLO,  "Hello"
     IDS_WORLD,  "World!"
 }
+
+STRINGRES RCDATA
+{
+   "This is a ANSI string\0",
+   L"This is a UNICODE string\0",
+}
+
+STRINGRES1 RCDATA
+{
+   "This is ANSI string 1\0",
+   L"This is UNICODE string 1\0",
+}
+
+STRINGRES2 RCDATA
+{
+   "This is ANSI string 2\0",
+   L"This is UNICODE string 2\0",
+}
+
+STRINGRES3 RCDATA
+{
+   "This is ANSI string 3\0",
+   L"This is UNICODE string 3\0",
+}

@@ -9,6 +9,64 @@
 
 typedef int (*addNumberProc)(int, int);
 
+// Thanks to Tim Cooper (from http://stackoverflow.com/a/8584708)
+const char *sstrstr(const char *haystack, const char *needle, size_t length) {
+    size_t needle_length = strlen(needle);
+    size_t i;
+
+    for (i = 0; i < length; i++) {
+        if (i + needle_length > length) {
+            return NULL;
+        }
+
+        if (strncmp(&haystack[i], needle, needle_length) == 0) {
+            return &haystack[i];
+        }
+    }
+    return NULL;
+}
+
+const wchar_t *swcsstr(const wchar_t *haystack, const wchar_t *needle, size_t length) {
+    size_t needle_length = wcslen(needle);
+    size_t i;
+
+    for (i = 0; i < length; i++) {
+        if (i + needle_length > length) {
+            return NULL;
+        }
+
+        if (wcsncmp(&haystack[i], needle, needle_length) == 0) {
+            return &haystack[i];
+        }
+    }
+    return NULL;
+}
+
+BOOL CheckResourceStrings(LPVOID data, DWORD size, const char *first, const wchar_t *second) {
+    const char *first_pos;
+    const wchar_t *second_pos;
+    const wchar_t *src;
+
+    if (data == NULL || size == 0) {
+        return FALSE;
+    }
+
+    first_pos = sstrstr((const char *) data, first, size);
+    if (first_pos == NULL) {
+        fprintf(stderr, "ERROR: data doesn't start with %s\n", first);
+        return FALSE;
+    }
+
+    src = (const wchar_t *) (((const char *) data) + strlen(first) + 1);
+    second_pos = swcsstr(src, second, (size - strlen(first) - 1) / sizeof(wchar_t));
+    if (second_pos == NULL) {
+        fprintf(stderr, "ERROR: data doesn't continue with %S\n", second);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 BOOL LoadFromMemory(char *filename)
 {
     FILE *fp;
@@ -84,6 +142,64 @@ BOOL LoadFromMemory(char *filename)
 
         MemoryLoadString(handle, 20, buffer, sizeof(buffer));
         _tprintf(_T("String2: %s\n"), buffer);
+    } else {
+        result = FALSE;
+    }
+
+    resourceInfo = MemoryFindResource(handle, _T("stringres"), RT_RCDATA);
+    _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
+    if (resourceInfo != NULL) {
+        resourceSize = MemorySizeofResource(handle, resourceInfo);
+        resourceData = MemoryLoadResource(handle, resourceInfo);
+
+        _tprintf(_T("Memory resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
+        if (!CheckResourceStrings(resourceData, resourceSize, "This is a ANSI string", L"This is a UNICODE string")) {
+            result = FALSE;
+        }
+    } else {
+        result = FALSE;
+    }
+
+    resourceInfo = MemoryFindResource(handle, _T("stringres1"), RT_RCDATA);
+    _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
+    if (resourceInfo != NULL) {
+        resourceSize = MemorySizeofResource(handle, resourceInfo);
+        resourceData = MemoryLoadResource(handle, resourceInfo);
+
+        _tprintf(_T("Memory resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
+        if (!CheckResourceStrings(resourceData, resourceSize, "This is ANSI string 1", L"This is UNICODE string 1")) {
+            result = FALSE;
+        }
+    } else {
+        result = FALSE;
+    }
+
+
+    resourceInfo = MemoryFindResource(handle, _T("stringres2"), RT_RCDATA);
+    _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
+    if (resourceInfo != NULL) {
+        resourceSize = MemorySizeofResource(handle, resourceInfo);
+        resourceData = MemoryLoadResource(handle, resourceInfo);
+
+        _tprintf(_T("Memory resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
+        if (!CheckResourceStrings(resourceData, resourceSize, "This is ANSI string 2", L"This is UNICODE string 2")) {
+            result = FALSE;
+        }
+    } else {
+        result = FALSE;
+    }
+
+
+    resourceInfo = MemoryFindResource(handle, _T("stringres3"), RT_RCDATA);
+    _tprintf(_T("MemoryFindResource returned 0x%p\n"), resourceInfo);
+    if (resourceInfo != NULL) {
+        resourceSize = MemorySizeofResource(handle, resourceInfo);
+        resourceData = MemoryLoadResource(handle, resourceInfo);
+
+        _tprintf(_T("Memory resource data: %ld bytes at 0x%p\n"), resourceSize, resourceData);
+        if (!CheckResourceStrings(resourceData, resourceSize, "This is ANSI string 3", L"This is UNICODE string 3")) {
+            result = FALSE;
+        }
     } else {
         result = FALSE;
     }
