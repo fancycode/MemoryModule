@@ -1,3 +1,5 @@
+# Status available at
+# https://ci.appveyor.com/project/fancycode/memorymodule
 version: #{build}
 
 os:

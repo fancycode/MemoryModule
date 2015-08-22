@@ -1,7 +1,7 @@
 MemoryModule
 ============
 
-[![Build Status](https://travis-ci.org/fancycode/MemoryModule.svg?branch=master)](https://travis-ci.org/fancycode/MemoryModule)
+[![Build Status](https://travis-ci.org/fancycode/MemoryModule.svg?branch=master)](https://travis-ci.org/fancycode/MemoryModule)[![Build status](https://ci.appveyor.com/api/projects/status/qcrfxbno0jbbl9cx?svg=true)](https://ci.appveyor.com/project/fancycode/memorymodule)
 
 The default windows API functions to load external libraries into a program
 (`LoadLibrary`, `LoadLibraryEx`) only work with files on the filesystem.  It's
