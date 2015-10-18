@@ -763,7 +763,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             PIMAGE_RESOURCE_DIR_STRING_U resourceString;
             middle = (start + end) >> 1;
             resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
-            cmp = wcsnicmp(searchKey, resourceString->NameString, resourceString->Length);
+            cmp = _wcsnicmp(searchKey, resourceString->NameString, resourceString->Length);
             if (cmp == 0) {
                 // Handle partial match
                 cmp = searchKeyLen - resourceString->Length;
