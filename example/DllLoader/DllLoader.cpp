@@ -9,7 +9,7 @@
 
 typedef int (*addNumberProc)(int, int);
 
-#define DLL_FILE TEXT("..\\SampleDLL\\SampleDLL.dll")
+#define DLL_FILE TEXT("..\\SampleDLL\\Debug\\SampleDLL.dll")
 
 void LoadFromFile(void)
 {
@@ -100,8 +100,12 @@ exit:
 
 int main(int argc, char* argv[])
 {
-    LoadFromFile();
+    // Oddly, doing this first seems to make the load from memory work
+    //OutputDebugString("Loading from File\n");
+    //--> LoadFromFile();
+
     printf("\n\n");
+    OutputDebugString("Loading from Memory\n");
     LoadFromMemory();
     return 0;
 }
