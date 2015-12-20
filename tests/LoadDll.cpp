@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 
+#include <assert.h>
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
@@ -60,7 +61,7 @@ BOOL CheckResourceStrings(LPVOID data, DWORD size, const char *first, const wcha
     src = (const wchar_t *) (((const char *) data) + strlen(first) + 1);
     second_pos = swcsstr(src, second, (size - strlen(first) - 1) / sizeof(wchar_t));
     if (second_pos == NULL) {
-        fprintf(stderr, "ERROR: data doesn't continue with %S\n", second);
+        fwprintf(stderr, L"ERROR: data doesn't continue with %s\n", second);
         return FALSE;
     }
 
@@ -71,8 +72,9 @@ BOOL LoadFromMemory(char *filename)
 {
     FILE *fp;
     unsigned char *data=NULL;
-    size_t size;
-    HMEMORYMODULE handle;
+    long size;
+    size_t read;
+    HMEMORYMODULE handle = NULL;
     addNumberProc addNumber;
     addNumberProc addNumber2;
     HMEMORYRSRC resourceInfo;
@@ -91,9 +93,12 @@ BOOL LoadFromMemory(char *filename)
 
     fseek(fp, 0, SEEK_END);
     size = ftell(fp);
+    assert(size > 0);
     data = (unsigned char *)malloc(size);
+    assert(data != NULL);
     fseek(fp, 0, SEEK_SET);
-    fread(data, 1, size, fp);
+    read = fread(data, 1, size, fp);
+    assert(read == static_cast<size_t>(size));
     fclose(fp);
 
     handle = MemoryLoadLibrary(data);
@@ -204,11 +209,9 @@ BOOL LoadFromMemory(char *filename)
         result = FALSE;
     }
 
-    MemoryFreeLibrary(handle);
-
 exit:
-    if (data)
-        free(data);
+    MemoryFreeLibrary(handle);
+    free(data);
     return result;
 }
 

@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 
+#include <assert.h>
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
@@ -46,7 +47,8 @@ void LoadFromMemory(void)
 {
     FILE *fp;
     unsigned char *data=NULL;
-    size_t size;
+    long size;
+    size_t read;
     HMEMORYMODULE handle;
     addNumberProc addNumber;
     HMEMORYRSRC resourceInfo;
@@ -63,9 +65,12 @@ void LoadFromMemory(void)
 
     fseek(fp, 0, SEEK_END);
     size = ftell(fp);
+    assert(size >= 0);
     data = (unsigned char *)malloc(size);
+    assert(data != NULL);
     fseek(fp, 0, SEEK_SET);
-    fread(data, 1, size, fp);
+    read = fread(data, 1, size, fp);
+    assert(read == static_cast<size_t>(size));
     fclose(fp);
 
     handle = MemoryLoadLibrary(data);
@@ -94,8 +99,7 @@ void LoadFromMemory(void)
     MemoryFreeLibrary(handle);
 
 exit:
-    if (data)
-        free(data);
+    free(data);
 }
 
 int main(int argc, char* argv[])
