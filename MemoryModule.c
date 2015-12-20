@@ -610,7 +610,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     // get entry point of loaded library
     if (result->headers->OptionalHeader.AddressOfEntryPoint != 0) {
         if (result->isDLL) {
-            DllEntryProc DllEntry = (DllEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
+            DllEntryProc DllEntry = (DllEntryProc)(LPVOID)(code + result->headers->OptionalHeader.AddressOfEntryPoint);
             // notify library about attaching to process
             BOOL successfull = (*DllEntry)((HINSTANCE)code, DLL_PROCESS_ATTACH, 0);
             if (!successfull) {
@@ -619,7 +619,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
             }
             result->initialized = TRUE;
         } else {
-            result->exeEntry = (ExeEntryProc) (code + result->headers->OptionalHeader.AddressOfEntryPoint);
+            result->exeEntry = (ExeEntryProc)(LPVOID)(code + result->headers->OptionalHeader.AddressOfEntryPoint);
         }
     } else {
         result->exeEntry = NULL;
@@ -688,7 +688,7 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
     }
 
     // AddressOfFunctions contains the RVAs to the "real" functions
-    return (FARPROC) (codeBase + (*(DWORD *) (codeBase + exports->AddressOfFunctions + (idx*4))));
+    return (FARPROC)(LPVOID)(codeBase + (*(DWORD *) (codeBase + exports->AddressOfFunctions + (idx*4))));
 }
 
 void MemoryFreeLibrary(HMEMORYMODULE mod)
@@ -700,7 +700,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
     }
     if (module->initialized) {
         // notify library about detaching from process
-        DllEntryProc DllEntry = (DllEntryProc) (module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
+        DllEntryProc DllEntry = (DllEntryProc)(LPVOID)(module->codeBase + module->headers->OptionalHeader.AddressOfEntryPoint);
         (*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
     }
 
