@@ -3,7 +3,7 @@
 version: #{build}
 
 os:
-  - Windows Server 2012 R2
+  - Visual Studio 2015
 
 environment:
   matrix:
@@ -18,6 +18,10 @@ environment:
     - GENERATOR: "Visual Studio 12 2013"
       UNICODE: ON
     - GENERATOR: "Visual Studio 12 2013"
+      UNICODE: OFF
+    - GENERATOR: "Visual Studio 14 2015"
+      UNICODE: ON
+    - GENERATOR: "Visual Studio 14 2015"
       UNICODE: OFF
 
 platform:
