@@ -635,7 +635,7 @@ error:
 FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
 {
     unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
-    DWORD idx;
+    DWORD idx = 0;
     PIMAGE_EXPORT_DIRECTORY exports;
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY((PMEMORYMODULE)module, IMAGE_DIRECTORY_ENTRY_EXPORT);
     if (directory->Size == 0) {
