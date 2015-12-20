@@ -425,6 +425,7 @@ BuildImportTable(PMEMORYMODULE module)
 
 static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
 {
+    UNREFERENCED_PARAMETER(userdata);
     HMODULE result = LoadLibraryA(filename);
     if (result == NULL) {
         return NULL;
@@ -435,11 +436,13 @@ static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
 
 static FARPROC _GetProcAddress(HCUSTOMMODULE module, LPCSTR name, void *userdata)
 {
+    UNREFERENCED_PARAMETER(userdata);
     return (FARPROC) GetProcAddress((HMODULE) module, name);
 }
 
 static void _FreeLibrary(HCUSTOMMODULE module, void *userdata)
 {
+    UNREFERENCED_PARAMETER(userdata);
     FreeLibrary((HMODULE) module);
 }
 
@@ -897,6 +900,7 @@ HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE module, LPCTSTR name, LPCTSTR typ
 
 DWORD MemorySizeofResource(HMEMORYMODULE module, HMEMORYRSRC resource)
 {
+    UNREFERENCED_PARAMETER(module);
     PIMAGE_RESOURCE_DATA_ENTRY entry = (PIMAGE_RESOURCE_DATA_ENTRY) resource;
     if (entry == NULL) {
         return 0;

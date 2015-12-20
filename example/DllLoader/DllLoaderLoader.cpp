@@ -54,7 +54,7 @@ exit:
     return result;
 }
 
-int main(int argc, char* argv[])
+int main()
 {
     return RunFromMemory();
 }

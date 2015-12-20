@@ -102,7 +102,7 @@ exit:
     free(data);
 }
 
-int main(int argc, char* argv[])
+int main()
 {
     LoadFromFile();
     printf("\n\n");
