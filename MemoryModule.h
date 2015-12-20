@@ -44,19 +44,20 @@ typedef FARPROC (*CustomGetProcAddressFunc)(HCUSTOMMODULE, LPCSTR, void *);
 typedef void (*CustomFreeLibraryFunc)(HCUSTOMMODULE, void *);
 
 /**
- * Load EXE/DLL from memory location.
+ * Load EXE/DLL from memory location with the given size.
  *
  * All dependencies are resolved using default LoadLibrary/GetProcAddress
  * calls through the Windows API.
  */
-HMEMORYMODULE MemoryLoadLibrary(const void *);
+HMEMORYMODULE MemoryLoadLibrary(const void *, size_t);
 
 /**
- * Load EXE/DLL from memory location using custom dependency resolvers.
+ * Load EXE/DLL from memory location with the given size using custom dependency
+ * resolvers.
  *
  * Dependencies will be resolved using passed callback methods.
  */
-HMEMORYMODULE MemoryLoadLibraryEx(const void *,
+HMEMORYMODULE MemoryLoadLibraryEx(const void *, size_t,
     CustomLoadLibraryFunc,
     CustomGetProcAddressFunc,
     CustomFreeLibraryFunc,

@@ -511,7 +511,7 @@ The interface is very similar to the standard methods for loading of libraries::
 
     typedef void *HMEMORYMODULE;
 
-    HMEMORYMODULE MemoryLoadLibrary(const void *);
+    HMEMORYMODULE MemoryLoadLibrary(const void *, size_t);
     FARPROC MemoryGetProcAddress(HMEMORYMODULE, const char *);
     void MemoryFreeLibrary(HMEMORYMODULE);
 

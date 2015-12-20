@@ -101,7 +101,7 @@ BOOL LoadFromMemory(char *filename)
     assert(read == static_cast<size_t>(size));
     fclose(fp);
 
-    handle = MemoryLoadLibrary(data);
+    handle = MemoryLoadLibrary(data, size);
     if (handle == NULL)
     {
         _tprintf(_T("Can't load library from memory.\n"));
