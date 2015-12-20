@@ -451,8 +451,6 @@ HMEMORYMODULE MemoryLoadLibrary(const void *data, size_t size)
     return MemoryLoadLibraryEx(data, size, _LoadLibrary, _GetProcAddress, _FreeLibrary, NULL);
 }
 
-#include <stdio.h>
-
 HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     CustomLoadLibraryFunc loadLibrary,
     CustomGetProcAddressFunc getProcAddress,
