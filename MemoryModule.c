@@ -425,8 +425,9 @@ BuildImportTable(PMEMORYMODULE module)
 
 static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
 {
+    HMODULE result;
     UNREFERENCED_PARAMETER(userdata);
-    HMODULE result = LoadLibraryA(filename);
+    result = LoadLibraryA(filename);
     if (result == NULL) {
         return NULL;
     }
@@ -898,8 +899,9 @@ HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE module, LPCTSTR name, LPCTSTR typ
 
 DWORD MemorySizeofResource(HMEMORYMODULE module, HMEMORYRSRC resource)
 {
+    PIMAGE_RESOURCE_DATA_ENTRY entry;
     UNREFERENCED_PARAMETER(module);
-    PIMAGE_RESOURCE_DATA_ENTRY entry = (PIMAGE_RESOURCE_DATA_ENTRY) resource;
+    entry = (PIMAGE_RESOURCE_DATA_ENTRY) resource;
     if (entry == NULL) {
         return 0;
     }
