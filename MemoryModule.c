@@ -56,6 +56,8 @@ typedef struct {
     BOOL initialized;
     BOOL isDLL;
     BOOL isRelocated;
+    CustomAllocFunc alloc;
+    CustomFreeFunc free;
     CustomLoadLibraryFunc loadLibrary;
     CustomGetProcAddressFunc getProcAddress;
     CustomFreeLibraryFunc freeLibrary;
@@ -115,10 +117,11 @@ CopySections(const unsigned char *data, size_t size, PIMAGE_NT_HEADERS old_heade
             // uninitialized data
             section_size = old_headers->OptionalHeader.SectionAlignment;
             if (section_size > 0) {
-                dest = (unsigned char *)VirtualAlloc(codeBase + section->VirtualAddress,
+                dest = (unsigned char *)module->alloc(codeBase + section->VirtualAddress,
                     section_size,
                     MEM_COMMIT,
-                    PAGE_READWRITE);
+                    PAGE_READWRITE,
+                    module->userdata);
                 if (dest == NULL) {
                     return FALSE;
                 }
@@ -139,10 +142,11 @@ CopySections(const unsigned char *data, size_t size, PIMAGE_NT_HEADERS old_heade
         }
 
         // commit memory block and copy data from dll
-        dest = (unsigned char *)VirtualAlloc(codeBase + section->VirtualAddress,
+        dest = (unsigned char *)module->alloc(codeBase + section->VirtualAddress,
                             section->SizeOfRawData,
                             MEM_COMMIT,
-                            PAGE_READWRITE);
+                            PAGE_READWRITE,
+                            module->userdata);
         if (dest == NULL) {
             return FALSE;
         }
@@ -202,7 +206,7 @@ FinalizeSection(PMEMORYMODULE module, PSECTIONFINALIZEDATA sectionData) {
              (sectionData->size % module->pageSize) == 0)
            ) {
             // Only allowed to decommit whole pages
-            VirtualFree(sectionData->address, sectionData->size, MEM_DECOMMIT);
+            module->free(sectionData->address, sectionData->size, MEM_DECOMMIT, module->userdata);
         }
         return TRUE;
     }
@@ -429,6 +433,18 @@ BuildImportTable(PMEMORYMODULE module)
     return result;
 }
 
+LPVOID MemoryDefaultAlloc(LPVOID address, SIZE_T size, DWORD allocationType, DWORD protect, void* userdata)
+{
+	UNREFERENCED_PARAMETER(userdata);
+	return VirtualAlloc(address, size, allocationType, protect);
+}
+
+BOOL MemoryDefaultFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType, void* userdata)
+{
+	UNREFERENCED_PARAMETER(userdata);
+	return VirtualFree(lpAddress, dwSize, dwFreeType);
+}
+
 HCUSTOMMODULE MemoryDefaultLoadLibrary(LPCSTR filename, void *userdata)
 {
     HMODULE result;
@@ -455,10 +471,12 @@ void MemoryDefaultFreeLibrary(HCUSTOMMODULE module, void *userdata)
 
 HMEMORYMODULE MemoryLoadLibrary(const void *data, size_t size)
 {
-    return MemoryLoadLibraryEx(data, size, MemoryDefaultLoadLibrary, MemoryDefaultGetProcAddress, MemoryDefaultFreeLibrary, NULL);
+    return MemoryLoadLibraryEx(data, size, MemoryDefaultAlloc, MemoryDefaultFree, MemoryDefaultLoadLibrary, MemoryDefaultGetProcAddress, MemoryDefaultFreeLibrary, NULL);
 }
 
 HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
+    CustomAllocFunc allocMemory,
+    CustomFreeFunc freeMemory,
     CustomLoadLibraryFunc loadLibrary,
     CustomGetProcAddressFunc getProcAddress,
     CustomFreeLibraryFunc freeLibrary,
@@ -535,17 +553,19 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     // reserve memory for image of library
     // XXX: is it correct to commit the complete memory region at once?
     //      calling DllEntry raises an exception if we don't...
-    code = (unsigned char *)VirtualAlloc((LPVOID)(old_header->OptionalHeader.ImageBase),
+    code = (unsigned char *)allocMemory((LPVOID)(old_header->OptionalHeader.ImageBase),
         alignedImageSize,
         MEM_RESERVE | MEM_COMMIT,
-        PAGE_READWRITE);
+        PAGE_READWRITE,
+        userdata);
 
     if (code == NULL) {
         // try to allocate memory at arbitrary position
-        code = (unsigned char *)VirtualAlloc(NULL,
+        code = (unsigned char *)allocMemory(NULL,
             alignedImageSize,
             MEM_RESERVE | MEM_COMMIT,
-            PAGE_READWRITE);
+            PAGE_READWRITE,
+            userdata);
         if (code == NULL) {
             SetLastError(ERROR_OUTOFMEMORY);
             return NULL;
@@ -554,13 +574,15 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
 
     result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORYMODULE));
     if (result == NULL) {
-        VirtualFree(code, 0, MEM_RELEASE);
+        freeMemory(code, 0, MEM_RELEASE, userdata);
         SetLastError(ERROR_OUTOFMEMORY);
         return NULL;
     }
 
     result->codeBase = code;
     result->isDLL = (old_header->FileHeader.Characteristics & IMAGE_FILE_DLL) != 0;
+    result->alloc = allocMemory;
+    result->free = freeMemory;
     result->loadLibrary = loadLibrary;
     result->getProcAddress = getProcAddress;
     result->freeLibrary = freeLibrary;
@@ -572,10 +594,11 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     }
 
     // commit memory for headers
-    headers = (unsigned char *)VirtualAlloc(code,
+    headers = (unsigned char *)allocMemory(code,
         old_header->OptionalHeader.SizeOfHeaders,
         MEM_COMMIT,
-        PAGE_READWRITE);
+        PAGE_READWRITE,
+        userdata);
 
     // copy PE header to code
     memcpy(headers, dos_header, old_header->OptionalHeader.SizeOfHeaders);
@@ -724,7 +747,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
 
     if (module->codeBase != NULL) {
         // release memory of library
-        VirtualFree(module->codeBase, 0, MEM_RELEASE);
+        module->free(module->codeBase, 0, MEM_RELEASE, module->userdata);
     }
 
     HeapFree(GetProcessHeap(), 0, module);
