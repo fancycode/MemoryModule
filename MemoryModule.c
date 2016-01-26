@@ -27,6 +27,7 @@
 #include <windows.h>
 #include <winnt.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <tchar.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
