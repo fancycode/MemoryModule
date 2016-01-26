@@ -33,6 +33,11 @@
 #include <stdio.h>
 #endif
 
+#if _MSC_VER
+// Disable warning about data -> function pointer conversion
+#pragma warning(disable:4055)
+#endif
+
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
 // Vista SDKs no longer define IMAGE_SIZEOF_BASE_RELOCATION!?
 #define IMAGE_SIZEOF_BASE_RELOCATION (sizeof(IMAGE_BASE_RELOCATION))
