@@ -39,7 +39,7 @@ int RunFromMemory(void)
     assert(read == static_cast<size_t>(size));
     fclose(fp);
 
-    handle = MemoryLoadLibrary(data, size);
+    handle = MemoryLoadLibrary(data, size, NULL);
     if (handle == NULL)
     {
         _tprintf(_T("Can't load library from memory.\n"));
