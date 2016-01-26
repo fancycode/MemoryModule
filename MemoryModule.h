@@ -117,6 +117,30 @@ int MemoryLoadString(HMEMORYMODULE, UINT, LPTSTR, int);
  */
 int MemoryLoadStringEx(HMEMORYMODULE, UINT, LPTSTR, int, WORD);
 
+/**
+ * Default implementation of CustomLoadLibraryFunc that calls LoadLibraryA
+ * internally to load an additional libary.
+ *
+ * This is the default as used by MemoryLoadLibrary.
+ */
+HCUSTOMMODULE MemoryDefaultLoadLibrary(LPCSTR, void *);
+
+/**
+ * Default implementation of CustomGetProcAddressFunc that calls GetProcAddress
+ * internally to get the address of an exported function.
+ *
+ * This is the default as used by MemoryLoadLibrary.
+ */
+FARPROC MemoryDefaultGetProcAddress(HCUSTOMMODULE, LPCSTR, void *);
+
+/**
+ * Default implementation of CustomFreeLibraryFunc that calls FreeLibrary
+ * internally to release an additional libary.
+ *
+ * This is the default as used by MemoryLoadLibrary.
+ */
+void MemoryDefaultFreeLibrary(HCUSTOMMODULE, void *);
+
 #ifdef __cplusplus
 }
 #endif

@@ -423,7 +423,7 @@ BuildImportTable(PMEMORYMODULE module)
     return result;
 }
 
-static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
+HCUSTOMMODULE MemoryDefaultLoadLibrary(LPCSTR filename, void *userdata)
 {
     HMODULE result;
     UNREFERENCED_PARAMETER(userdata);
@@ -435,13 +435,13 @@ static HCUSTOMMODULE _LoadLibrary(LPCSTR filename, void *userdata)
     return (HCUSTOMMODULE) result;
 }
 
-static FARPROC _GetProcAddress(HCUSTOMMODULE module, LPCSTR name, void *userdata)
+FARPROC MemoryDefaultGetProcAddress(HCUSTOMMODULE module, LPCSTR name, void *userdata)
 {
     UNREFERENCED_PARAMETER(userdata);
     return (FARPROC) GetProcAddress((HMODULE) module, name);
 }
 
-static void _FreeLibrary(HCUSTOMMODULE module, void *userdata)
+void MemoryDefaultFreeLibrary(HCUSTOMMODULE module, void *userdata)
 {
     UNREFERENCED_PARAMETER(userdata);
     FreeLibrary((HMODULE) module);
@@ -449,7 +449,7 @@ static void _FreeLibrary(HCUSTOMMODULE module, void *userdata)
 
 HMEMORYMODULE MemoryLoadLibrary(const void *data, size_t size)
 {
-    return MemoryLoadLibraryEx(data, size, _LoadLibrary, _GetProcAddress, _FreeLibrary, NULL);
+    return MemoryLoadLibraryEx(data, size, MemoryDefaultLoadLibrary, MemoryDefaultGetProcAddress, MemoryDefaultFreeLibrary, NULL);
 }
 
 HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
