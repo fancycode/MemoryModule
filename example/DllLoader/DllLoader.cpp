@@ -46,12 +46,48 @@ void LoadFromFile(void)
     FreeLibrary(handle);
 }
 
+void* ReadLibrary(long* pSize) {
+    long read;
+    void* result;
+    FILE* fp;
+
+    fp = _tfopen(DLL_FILE, _T("rb"));
+    if (fp == NULL)
+    {
+        _tprintf(_T("Can't open DLL file \"%s\"."), DLL_FILE);
+        return NULL;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    *pSize = ftell(fp);
+    if (*pSize < 0)
+    {
+        fclose(fp);
+        return NULL;
+    }
+
+    result = (unsigned char *)malloc(*pSize);
+    if (result == NULL)
+    {
+        return NULL;
+    }
+
+    fseek(fp, 0, SEEK_SET);
+    read = fread(result, 1, *pSize, fp);
+    fclose(fp);
+    if (read != static_cast<size_t>(*pSize))
+    {
+        free(result);
+        return NULL;
+    }
+
+    return result;
+}
+
 void LoadFromMemory(void)
 {
-    FILE *fp;
-    unsigned char *data=NULL;
+    void *data;
     long size;
-    size_t read;
     HMEMORYMODULE handle;
     addNumberProc addNumber;
     HMEMORYRSRC resourceInfo;
@@ -59,22 +95,11 @@ void LoadFromMemory(void)
     LPVOID resourceData;
     TCHAR buffer[100];
 
-    fp = _tfopen(DLL_FILE, _T("rb"));
-    if (fp == NULL)
+    data = ReadLibrary(&size);
+    if (data == NULL)
     {
-        _tprintf(_T("Can't open DLL file \"%s\"."), DLL_FILE);
-        goto exit;
+        return;
     }
-
-    fseek(fp, 0, SEEK_END);
-    size = ftell(fp);
-    assert(size >= 0);
-    data = (unsigned char *)malloc(size);
-    assert(data != NULL);
-    fseek(fp, 0, SEEK_SET);
-    read = fread(data, 1, size, fp);
-    assert(read == static_cast<size_t>(size));
-    fclose(fp);
 
     handle = MemoryLoadLibrary(data, size);
     if (handle == NULL)
