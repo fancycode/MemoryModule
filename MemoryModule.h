@@ -39,6 +39,8 @@ typedef void *HCUSTOMMODULE;
 extern "C" {
 #endif
 
+typedef LPVOID (*CustomAllocFunc)(LPVOID, SIZE_T, DWORD, DWORD, void*);
+typedef BOOL (*CustomFreeFunc)(LPVOID, SIZE_T, DWORD, void*);
 typedef HCUSTOMMODULE (*CustomLoadLibraryFunc)(LPCSTR, void *);
 typedef FARPROC (*CustomGetProcAddressFunc)(HCUSTOMMODULE, LPCSTR, void *);
 typedef void (*CustomFreeLibraryFunc)(HCUSTOMMODULE, void *);
@@ -58,6 +60,8 @@ HMEMORYMODULE MemoryLoadLibrary(const void *, size_t);
  * Dependencies will be resolved using passed callback methods.
  */
 HMEMORYMODULE MemoryLoadLibraryEx(const void *, size_t,
+    CustomAllocFunc,
+    CustomFreeFunc,
     CustomLoadLibraryFunc,
     CustomGetProcAddressFunc,
     CustomFreeLibraryFunc,
@@ -116,6 +120,22 @@ int MemoryLoadString(HMEMORYMODULE, UINT, LPTSTR, int);
  * Load a string resource with a given language.
  */
 int MemoryLoadStringEx(HMEMORYMODULE, UINT, LPTSTR, int, WORD);
+
+/**
+* Default implementation of CustomAllocFunc that calls VirtualAlloc
+* internally to allocate memory for a library
+*
+* This is the default as used by MemoryLoadLibrary.
+*/
+LPVOID MemoryDefaultAlloc(LPVOID, SIZE_T, DWORD, DWORD, void *);
+
+/**
+* Default implementation of CustomFreeFunc that calls VirtualFree
+* internally to free the memory used by a library
+*
+* This is the default as used by MemoryLoadLibrary.
+*/
+BOOL MemoryDefaultFree(LPVOID, SIZE_T, DWORD, void *);
 
 /**
  * Default implementation of CustomLoadLibraryFunc that calls LoadLibraryA
