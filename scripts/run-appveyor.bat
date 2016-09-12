@@ -3,6 +3,10 @@ setlocal
 
 if /I "%PLATFORM%" == "x64" (
     set CMAKE_GEN_SUFFIX= Win64
+    if /I "%GENERATOR%" == "Visual Studio 9 2008" (
+        echo Skipping %CONFIGURATION% build using %GENERATOR%%CMAKE_GEN_SUFFIX% on %PLATFORM%
+        exit 0
+    )
 ) else (
     set CMAKE_GEN_SUFFIX=
 )

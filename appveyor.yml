@@ -7,6 +7,10 @@ os:
 
 environment:
   matrix:
+    - GENERATOR: "Visual Studio 9 2008"
+      UNICODE: ON
+    - GENERATOR: "Visual Studio 9 2008"
+      UNICODE: OFF
     - GENERATOR: "Visual Studio 10 2010"
       UNICODE: ON
     - GENERATOR: "Visual Studio 10 2010"
