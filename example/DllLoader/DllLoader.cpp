@@ -46,8 +46,8 @@ void LoadFromFile(void)
     FreeLibrary(handle);
 }
 
-void* ReadLibrary(long* pSize) {
-    long read;
+void* ReadLibrary(size_t* pSize) {
+    size_t read;
     void* result;
     FILE* fp;
 
@@ -59,8 +59,8 @@ void* ReadLibrary(long* pSize) {
     }
 
     fseek(fp, 0, SEEK_END);
-    *pSize = ftell(fp);
-    if (*pSize < 0)
+    *pSize = static_cast<size_t>(ftell(fp));
+    if (*pSize == 0)
     {
         fclose(fp);
         return NULL;
@@ -75,7 +75,7 @@ void* ReadLibrary(long* pSize) {
     fseek(fp, 0, SEEK_SET);
     read = fread(result, 1, *pSize, fp);
     fclose(fp);
-    if (read != static_cast<size_t>(*pSize))
+    if (read != *pSize)
     {
         free(result);
         return NULL;
@@ -87,7 +87,7 @@ void* ReadLibrary(long* pSize) {
 void LoadFromMemory(void)
 {
     void *data;
-    long size;
+    size_t size;
     HMEMORYMODULE handle;
     addNumberProc addNumber;
     HMEMORYRSRC resourceInfo;
@@ -195,7 +195,7 @@ void InitFreeFunc(CallList* calls, CustomFreeFunc freeFunc) {
 	calls->current_free_call = 0;
 }
 
-void TestFailingAllocation(void *data, long size) {
+void TestFailingAllocation(void *data, size_t size) {
     CallList expected_calls;
     HMEMORYMODULE handle;
 
@@ -214,7 +214,7 @@ void TestFailingAllocation(void *data, long size) {
     assert(expected_calls.current_free_call == 0);
 }
 
-void TestCleanupAfterFailingAllocation(void *data, long size) {
+void TestCleanupAfterFailingAllocation(void *data, size_t size) {
     CallList expected_calls;
     HMEMORYMODULE handle;
     int free_calls_after_loading;
@@ -238,7 +238,7 @@ void TestCleanupAfterFailingAllocation(void *data, long size) {
     assert(expected_calls.current_free_call == free_calls_after_loading);
 }
 
-void TestFreeAfterDefaultAlloc(void *data, long size) {
+void TestFreeAfterDefaultAlloc(void *data, size_t size) {
     CallList expected_calls;
     HMEMORYMODULE handle;
     int free_calls_after_loading;
@@ -260,7 +260,7 @@ void TestFreeAfterDefaultAlloc(void *data, long size) {
 void TestCustomAllocAndFree(void)
 {
     void *data;
-    long size;
+    size_t size;
 
     data = ReadLibrary(&size);
     if (data == NULL)
