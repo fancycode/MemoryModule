@@ -9,7 +9,7 @@ if /I "%PLATFORM%" == "x64" (
 
 echo.
 echo Preparing %CONFIGURATION% build environment for %GENERATOR%%CMAKE_GEN_SUFFIX% ...
-cmake "-G%GENERATOR%%CMAKE_GEN_SUFFIX%" -H. -Bbuild
+cmake "-G%GENERATOR%%CMAKE_GEN_SUFFIX%" -DPLATFORM=%PLATFORM% -DUNICODE=%UNICODE% -H. -Bbuild
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 echo.
