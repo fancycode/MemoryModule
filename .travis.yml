@@ -1,14 +1,14 @@
 sudo: false
 
 env:
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=  CMAKE=
-  - PLATFORM=i686   WINE=wine   UNICODE=  CMAKE=
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=1 CMAKE=
-  - PLATFORM=i686   WINE=wine   UNICODE=1 CMAKE=
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=  CMAKE=1
-  - PLATFORM=i686   WINE=wine   UNICODE=  CMAKE=1
-  - PLATFORM=x86_64 WINE=wine64 UNICODE=1 CMAKE=1
-  - PLATFORM=i686   WINE=wine   UNICODE=1 CMAKE=1
+  - PLATFORM=x86_64 UNICODE=  CMAKE=
+  - PLATFORM=i686   UNICODE=  CMAKE=
+  - PLATFORM=x86_64 UNICODE=1 CMAKE=
+  - PLATFORM=i686   UNICODE=1 CMAKE=
+  - PLATFORM=x86_64 UNICODE=  CMAKE=1
+  - PLATFORM=i686   UNICODE=  CMAKE=1
+  - PLATFORM=x86_64 UNICODE=1 CMAKE=1
+  - PLATFORM=i686   UNICODE=1 CMAKE=1
 
 language: cpp
 
@@ -37,5 +37,5 @@ script:
   - if [ -z "$CMAKE" ]; then make test PLATFORM=$PLATFORM UNICODE=$UNICODE; fi
   - if [ ! -z "$CMAKE" ]; then cmake --build .; fi
   - cd example/DllLoader
-  - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoader.exe
-  - WINEPREFIX=`pwd`/$WINE WINEPATH=/usr/lib/gcc/$PLATFORM-w64-mingw32/4.6/ $WINE ./DllLoaderLoader.exe
+  - ../../tests/runwine.sh $PLATFORM ./DllLoader.exe
+  - ../../tests/runwine.sh $PLATFORM ./DllLoaderLoader.exe
