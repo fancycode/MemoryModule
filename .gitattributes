@@ -1,0 +1,11 @@
+* text=auto
+
+# Native line endings.
+*.c text
+*.cpp text
+*.h text
+*.rc text
+
+# Windows line endings.
+*.bat text eol=crlf
+*.eln text eol=crlf

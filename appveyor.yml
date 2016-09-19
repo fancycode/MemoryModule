@@ -31,20 +31,9 @@ platform:
 configuration:
   - Debug
 
-build:
-  verbosity: normal
+install:
+  - call scripts\run-appveyor.bat
 
-build_script:
-  - ps: if($env:PLATFORM -eq "x64") { $env:CMAKE_GEN_SUFFIX=" Win64" }
-  - cmake "-G%GENERATOR%%CMAKE_GEN_SUFFIX%" -H. -Bbuild
-  - cmake --build build --config %CONFIGURATION%
-
-before_test:
-  - copy /y build\example\DllLoader\%CONFIGURATION%\DllLoader.exe build\example\DllLoader\
-  - copy /y build\example\DllLoader\%CONFIGURATION%\DllLoaderLoader.exe build\example\DllLoader\
-  - copy /y build\example\SampleDLL\%CONFIGURATION%\SampleDLL.dll build\example\SampleDLL\
-
-test_script:
-  - cd build\example\DllLoader
-  - DllLoader.exe
-  - DllLoaderLoader.exe
+build: off
+test: off
+deploy: off
