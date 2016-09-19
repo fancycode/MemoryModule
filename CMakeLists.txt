@@ -28,6 +28,7 @@ endif ()
 if (NOT MSVC)
     add_definitions ("-Wall")
 else ()
+    # Show level 4 warnings.
     add_definitions ("-W4")
 endif ()
 

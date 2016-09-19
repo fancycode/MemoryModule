@@ -35,6 +35,10 @@
 #if _MSC_VER
 // Disable warning about data -> function pointer conversion
 #pragma warning(disable:4055)
+ // C4244: conversion from 'uintptr_t' to 'DWORD', possible loss of data.
+#pragma warning(error: 4244)
+// C4267: conversion from 'size_t' to 'int', possible loss of data.
+#pragma warning(error: 4267)
 #endif
 
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
