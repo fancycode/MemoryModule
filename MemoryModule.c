@@ -28,6 +28,7 @@
 #include <winnt.h>
 #include <stddef.h>
 #include <tchar.h>
+#include <intsafe.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
 #endif
@@ -242,7 +243,7 @@ FinalizeSections(PMEMORYMODULE module)
 #endif
     SECTIONFINALIZEDATA sectionData;
     sectionData.address = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
-    sectionData.alignedAddress = ALIGN_DOWN(sectionData.address, module->pageSize);
+    sectionData.alignedAddress = ALIGN_DOWN(sectionData.address, (uintptr_t)module->pageSize);
     sectionData.size = GetRealSectionSize(module, section);
     sectionData.characteristics = section->Characteristics;
     sectionData.last = FALSE;
@@ -251,7 +252,7 @@ FinalizeSections(PMEMORYMODULE module)
     // loop through all sections and change access flags
     for (i=1; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         LPVOID sectionAddress = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
-        LPVOID alignedAddress = ALIGN_DOWN(sectionAddress, module->pageSize);
+        LPVOID alignedAddress = ALIGN_DOWN(sectionAddress, (uintptr_t)module->pageSize);
         DWORD sectionSize = GetRealSectionSize(module, section);
         // Combine access flags of all sections that share a page
         // TODO(fancycode): We currently share flags of a trailing large section
@@ -263,7 +264,15 @@ FinalizeSections(PMEMORYMODULE module)
             } else {
                 sectionData.characteristics |= section->Characteristics;
             }
-            sectionData.size = (((uintptr_t)sectionAddress) + sectionSize) - (uintptr_t) sectionData.address;
+
+            uintptr_t size = (((uintptr_t)sectionAddress) + sectionSize) - (uintptr_t)sectionData.address;
+            
+            if (size > (uintptr_t)DWORD_MAX)
+            {
+                return FALSE;
+            }
+
+            sectionData.size = (DWORD)size;
             continue;
         }
 
@@ -434,14 +443,14 @@ BuildImportTable(PMEMORYMODULE module)
 
 LPVOID MemoryDefaultAlloc(LPVOID address, SIZE_T size, DWORD allocationType, DWORD protect, void* userdata)
 {
-	UNREFERENCED_PARAMETER(userdata);
-	return VirtualAlloc(address, size, allocationType, protect);
+    UNREFERENCED_PARAMETER(userdata);
+    return VirtualAlloc(address, size, allocationType, protect);
 }
 
 BOOL MemoryDefaultFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType, void* userdata)
 {
-	UNREFERENCED_PARAMETER(userdata);
-	return VirtualFree(lpAddress, dwSize, dwFreeType);
+    UNREFERENCED_PARAMETER(userdata);
+    return VirtualFree(lpAddress, dwSize, dwFreeType);
 }
 
 HCUSTOMMODULE MemoryDefaultLoadLibrary(LPCSTR filename, void *userdata)
@@ -544,7 +553,7 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
 
     GetNativeSystemInfo(&sysInfo);
     alignedImageSize = ALIGN_VALUE_UP(old_header->OptionalHeader.SizeOfImage, sysInfo.dwPageSize);
-    if (alignedImageSize != ALIGN_VALUE_UP(lastSectionEnd, sysInfo.dwPageSize)) {
+    if (alignedImageSize != ALIGN_VALUE_UP(lastSectionEnd, (size_t)sysInfo.dwPageSize)) {
         SetLastError(ERROR_BAD_EXE_FORMAT);
         return NULL;
     }
@@ -842,7 +851,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
         start = 0;
         end = resources->NumberOfNamedEntries;
         while (end > start) {
-            int cmp;
+            size_t cmp;
             PIMAGE_RESOURCE_DIR_STRING_U resourceString;
             middle = (start + end) >> 1;
             resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
