@@ -257,7 +257,7 @@ FinalizeSections(PMEMORYMODULE module)
 #ifdef _WIN64
     uintptr_t imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
 #else
-    #define imageOffset 0
+    static const uintptr_t imageOffset = 0;
 #endif
     SECTIONFINALIZEDATA sectionData;
     sectionData.address = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
@@ -298,9 +298,6 @@ FinalizeSections(PMEMORYMODULE module)
     if (!FinalizeSection(module, &sectionData)) {
         return FALSE;
     }
-#ifndef _WIN64
-#undef imageOffset
-#endif
     return TRUE;
 }
 
@@ -838,7 +835,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
 #else
         // Resource names are always stored using 16bit characters, need to
         // convert string we search for.
-#define MAX_LOCAL_KEY_LENGTH 2048
+        static const size_t MAX_LOCAL_KEY_LENGTH = 2048;
         // In most cases resource names are short, so optimize for that by
         // using a pre-allocated array.
         wchar_t _searchKeySpace[MAX_LOCAL_KEY_LENGTH+1];
@@ -887,7 +884,6 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
         if (searchKeyLen > MAX_LOCAL_KEY_LENGTH) {
             free(_searchKey);
         }
-#undef MAX_LOCAL_KEY_LENGTH
 #endif
     }
 
