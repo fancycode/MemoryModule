@@ -526,9 +526,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     }
 
 #ifdef _WIN64
-    static const WORD HOST_MACHINE = IMAGE_FILE_MACHINE_AMD64;
+    static const int HOST_MACHINE = IMAGE_FILE_MACHINE_AMD64;
 #else
-    static const WORD HOST_MACHINE = IMAGE_FILE_MACHINE_I386;
+    static const int HOST_MACHINE = IMAGE_FILE_MACHINE_I386;
 #endif
     if (old_header->FileHeader.Machine != HOST_MACHINE) {
         SetLastError(ERROR_BAD_EXE_FORMAT);
