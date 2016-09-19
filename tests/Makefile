@@ -16,7 +16,7 @@ RC = rc
 endif
 
 RM = rm
-CFLAGS  = -Wall -g
+CFLAGS  = -Wall -g -DTESTSUITE
 LDFLAGS =
 RCFLAGS = -O coff
 
@@ -49,12 +49,19 @@ TEST_DLLS = \
 	test-relocate.dll \
 
 LOADDLL_OBJ = LoadDll.o ../MemoryModule.o
+TESTSUITE_OBJ = TestSuite.o ../MemoryModule.o
 DLL_OBJ = SampleDLL.o SampleDLL.res
 
-all: LoadDll.exe $(TEST_DLLS)
+all: prepare_testsuite LoadDll.exe TestSuite.exe $(TEST_DLLS)
+
+prepare_testsuite:
+	rm -f $(TESTSUITE_OBJ)
 
 LoadDll.exe: $(LOADDLL_OBJ)
 	$(CC) $(LDFLAGS_EXE) $(LDFLAGS) -Wl,--image-base -Wl,0x20000000 -o LoadDll.exe $(LOADDLL_OBJ)
+
+TestSuite.exe: $(TESTSUITE_OBJ)
+	$(CC) $(LDFLAGS_EXE) $(LDFLAGS) -o TestSuite.exe $(TESTSUITE_OBJ)
 
 LoadDll.o: LoadDll.cpp
 	$(CXX) $(CFLAGS) $(CFLAGS_EXE) -c $<
@@ -78,4 +85,5 @@ clean:
 	$(RM) -rf LoadDll.exe $(TEST_DLLS) $(LOADDLL_OBJ) $(DLL_OBJ)
 
 test: all
+	./runwine.sh $(PLATFORM) TestSuite.exe
 	./runtests.sh $(PLATFORM) "$(TEST_DLLS)"
