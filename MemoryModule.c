@@ -96,10 +96,12 @@ AlignValueUp(size_t value, size_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
-#ifdef DEBUG_OUTPUT
-static void
+static inline void
 OutputLastError(const char *msg)
 {
+#ifndef DEBUG_OUTPUT
+    UNREFERENCED_PARAMETER(msg);
+#else
     LPVOID tmp;
     char *tmpmsg;
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -109,8 +111,8 @@ OutputLastError(const char *msg)
     OutputDebugString(tmpmsg);
     LocalFree(tmpmsg);
     LocalFree(tmp);
-}
 #endif
+}
 
 static BOOL
 CheckSize(size_t size, size_t expected) {
@@ -240,9 +242,7 @@ FinalizeSection(PMEMORYMODULE module, PSECTIONFINALIZEDATA sectionData) {
 
     // change memory access flags
     if (VirtualProtect(sectionData->address, sectionData->size, protect, &oldProtect) == 0) {
-#ifdef DEBUG_OUTPUT
-        OutputLastError("Error protecting memory page")
-#endif
+        OutputLastError("Error protecting memory page");
         return FALSE;
     }
 
@@ -341,16 +341,10 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
         unsigned char *dest = codeBase + relocation->VirtualAddress;
         unsigned short *relInfo = (unsigned short *)((unsigned char *)relocation + IMAGE_SIZEOF_BASE_RELOCATION);
         for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++) {
-            DWORD *patchAddrHL;
-#ifdef _WIN64
-            ULONGLONG *patchAddr64;
-#endif
-            int type, offset;
-
             // the upper 4 bits define the type of relocation
-            type = *relInfo >> 12;
+            int type = *relInfo >> 12;
             // the lower 12 bits define the offset
-            offset = *relInfo & 0xfff;
+            int offset = *relInfo & 0xfff;
 
             switch (type)
             {
@@ -360,14 +354,18 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
 
             case IMAGE_REL_BASED_HIGHLOW:
                 // change complete 32 bit address
-                patchAddrHL = (DWORD *) (dest + offset);
-                *patchAddrHL += (DWORD) delta;
+                {
+                    DWORD *patchAddrHL = (DWORD *) (dest + offset);
+                    *patchAddrHL += (DWORD) delta;
+                }
                 break;
 
 #ifdef _WIN64
             case IMAGE_REL_BASED_DIR64:
-                patchAddr64 = (ULONGLONG *) (dest + offset);
-                *patchAddr64 += (ULONGLONG) delta;
+                {
+                    ULONGLONG *patchAddr64 = (ULONGLONG *) (dest + offset);
+                    *patchAddr64 += (ULONGLONG) delta;
+                }
                 break;
 #endif
 
@@ -528,10 +526,11 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     }
 
 #ifdef _WIN64
-    if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) {
+    static const WORD HOST_MACHINE = IMAGE_FILE_MACHINE_AMD64;
 #else
-    if (old_header->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
+    static const WORD HOST_MACHINE = IMAGE_FILE_MACHINE_I386;
 #endif
+    if (old_header->FileHeader.Machine != HOST_MACHINE) {
         SetLastError(ERROR_BAD_EXE_FORMAT);
         return NULL;
     }
