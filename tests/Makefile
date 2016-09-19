@@ -85,5 +85,5 @@ clean:
 	$(RM) -rf LoadDll.exe $(TEST_DLLS) $(LOADDLL_OBJ) $(DLL_OBJ)
 
 test: all
-	./TestSuite.exe
+	./runwine.sh $(PLATFORM) TestSuite.exe
 	./runtests.sh $(PLATFORM) "$(TEST_DLLS)"
