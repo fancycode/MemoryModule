@@ -48,6 +48,12 @@
 #define IMAGE_SIZEOF_BASE_RELOCATION (sizeof(IMAGE_BASE_RELOCATION))
 #endif
 
+#ifdef _WIN64
+#define HOST_MACHINE IMAGE_FILE_MACHINE_AMD64
+#else
+#define HOST_MACHINE IMAGE_FILE_MACHINE_I386
+#endif
+
 #include "MemoryModule.h"
 
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
@@ -525,11 +531,6 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
         return NULL;
     }
 
-#ifdef _WIN64
-    static const int HOST_MACHINE = IMAGE_FILE_MACHINE_AMD64;
-#else
-    static const int HOST_MACHINE = IMAGE_FILE_MACHINE_I386;
-#endif
     if (old_header->FileHeader.Machine != HOST_MACHINE) {
         SetLastError(ERROR_BAD_EXE_FORMAT);
         return NULL;
