@@ -39,6 +39,8 @@
 #pragma warning(error: 4244)
 // C4267: conversion from 'size_t' to 'int', possible loss of data.
 #pragma warning(error: 4267)
+
+#define inline __inline
 #endif
 
 #ifndef IMAGE_SIZEOF_BASE_RELOCATION
@@ -78,8 +80,21 @@ typedef struct {
 } SECTIONFINALIZEDATA, *PSECTIONFINALIZEDATA;
 
 #define GET_HEADER_DICTIONARY(module, idx)  &(module)->headers->OptionalHeader.DataDirectory[idx]
-#define ALIGN_DOWN(address, alignment)      (LPVOID)((uintptr_t)(address) & ~((alignment) - 1))
-#define ALIGN_VALUE_UP(value, alignment)    (((value) + (alignment) - 1) & ~((alignment) - 1))
+
+static inline uintptr_t
+AlignValueDown(uintptr_t value, uintptr_t alignment) {
+    return value & ~(alignment - 1);
+}
+
+static inline LPVOID
+AlignAddressDown(LPVOID address, uintptr_t alignment) {
+    return (LPVOID) AlignValueDown((uintptr_t) address, alignment);
+}
+
+static inline size_t
+AlignValueUp(size_t value, size_t alignment) {
+    return (value + alignment - 1) & ~(alignment - 1);
+}
 
 #ifdef DEBUG_OUTPUT
 static void
@@ -246,7 +261,7 @@ FinalizeSections(PMEMORYMODULE module)
 #endif
     SECTIONFINALIZEDATA sectionData;
     sectionData.address = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
-    sectionData.alignedAddress = ALIGN_DOWN(sectionData.address, module->pageSize);
+    sectionData.alignedAddress = AlignAddressDown(sectionData.address, module->pageSize);
     sectionData.size = GetRealSectionSize(module, section);
     sectionData.characteristics = section->Characteristics;
     sectionData.last = FALSE;
@@ -255,7 +270,7 @@ FinalizeSections(PMEMORYMODULE module)
     // loop through all sections and change access flags
     for (i=1; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         LPVOID sectionAddress = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
-        LPVOID alignedAddress = ALIGN_DOWN(sectionAddress, module->pageSize);
+        LPVOID alignedAddress = AlignAddressDown(sectionAddress, module->pageSize);
         DWORD sectionSize = GetRealSectionSize(module, section);
         // Combine access flags of all sections that share a page
         // TODO(fancycode): We currently share flags of a trailing large section
@@ -547,8 +562,8 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     }
 
     GetNativeSystemInfo(&sysInfo);
-    alignedImageSize = ALIGN_VALUE_UP(old_header->OptionalHeader.SizeOfImage, sysInfo.dwPageSize);
-    if (alignedImageSize != ALIGN_VALUE_UP(lastSectionEnd, sysInfo.dwPageSize)) {
+    alignedImageSize = AlignValueUp(old_header->OptionalHeader.SizeOfImage, sysInfo.dwPageSize);
+    if (alignedImageSize != AlignValueUp(lastSectionEnd, sysInfo.dwPageSize)) {
         SetLastError(ERROR_BAD_EXE_FORMAT);
         return NULL;
     }
@@ -998,3 +1013,66 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
 #endif
     return size;
 }
+
+#ifdef TESTSUITE
+#include <stdio.h>
+#include <inttypes.h>
+
+#ifndef PRIxPTR
+#ifdef _WIN64
+#define PRIxPTR "I64x"
+#else
+#define PRIxPTR "x"
+#endif
+#endif
+
+static const uintptr_t AlignValueDownTests[][3] = {
+    {16, 16, 16},
+    {17, 16, 16},
+    {32, 16, 32},
+    {33, 16, 32},
+#ifdef _WIN64
+    {0x12345678abcd1000, 0x1000, 0x12345678abcd1000},
+    {0x12345678abcd101f, 0x1000, 0x12345678abcd1000},
+#endif
+    {0, 0, 0},
+};
+
+static const uintptr_t AlignValueUpTests[][3] = {
+    {16, 16, 16},
+    {17, 16, 32},
+    {32, 16, 32},
+    {33, 16, 48},
+#ifdef _WIN64
+    {0x12345678abcd1000, 0x1000, 0x12345678abcd1000},
+    {0x12345678abcd101f, 0x1000, 0x12345678abcd2000},
+#endif
+    {0, 0, 0},
+};
+
+BOOL MemoryModuleTestsuite() {
+    BOOL success = TRUE;
+    for (size_t idx = 0; AlignValueDownTests[idx][0]; ++idx) {
+        const uintptr_t* tests = AlignValueDownTests[idx];
+        uintptr_t value = AlignValueDown(tests[0], tests[1]);
+        if (value != tests[2]) {
+            printf("AlignValueDown failed for 0x%" PRIxPTR "/0x%" PRIxPTR ": expected 0x%" PRIxPTR ", got 0x%" PRIxPTR "\n",
+                tests[0], tests[1], tests[2], value);
+            success = FALSE;
+        }
+    }
+    for (size_t idx = 0; AlignValueDownTests[idx][0]; ++idx) {
+        const uintptr_t* tests = AlignValueUpTests[idx];
+        uintptr_t value = AlignValueUp(tests[0], tests[1]);
+        if (value != tests[2]) {
+            printf("AlignValueUp failed for 0x%" PRIxPTR "/0x%" PRIxPTR ": expected 0x%" PRIxPTR ", got 0x%" PRIxPTR "\n",
+                tests[0], tests[1], tests[2], value);
+            success = FALSE;
+        }
+    }
+    if (success) {
+        printf("OK\n");
+    }
+    return success;
+}
+#endif
