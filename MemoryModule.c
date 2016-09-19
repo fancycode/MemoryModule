@@ -74,7 +74,7 @@ typedef struct {
 typedef struct {
     LPVOID address;
     LPVOID alignedAddress;
-    DWORD size;
+    SIZE_T size;
     DWORD characteristics;
     BOOL last;
 } SECTIONFINALIZEDATA, *PSECTIONFINALIZEDATA;
@@ -192,7 +192,7 @@ static int ProtectionFlags[2][2][2] = {
     },
 };
 
-static DWORD
+static SIZE_T
 GetRealSectionSize(PMEMORYMODULE module, PIMAGE_SECTION_HEADER section) {
     DWORD size = section->SizeOfRawData;
     if (size == 0) {
@@ -202,7 +202,7 @@ GetRealSectionSize(PMEMORYMODULE module, PIMAGE_SECTION_HEADER section) {
             size = module->headers->OptionalHeader.SizeOfUninitializedData;
         }
     }
-    return size;
+    return (SIZE_T) size;
 }
 
 static BOOL
@@ -271,7 +271,7 @@ FinalizeSections(PMEMORYMODULE module)
     for (i=1; i<module->headers->FileHeader.NumberOfSections; i++, section++) {
         LPVOID sectionAddress = (LPVOID)((uintptr_t)section->Misc.PhysicalAddress | imageOffset);
         LPVOID alignedAddress = AlignAddressDown(sectionAddress, module->pageSize);
-        DWORD sectionSize = GetRealSectionSize(module, section);
+        SIZE_T sectionSize = GetRealSectionSize(module, section);
         // Combine access flags of all sections that share a page
         // TODO(fancycode): We currently share flags of a trailing large section
         //   with the page of a first small section. This should be optimized.
@@ -282,7 +282,7 @@ FinalizeSections(PMEMORYMODULE module)
             } else {
                 sectionData.characteristics |= section->Characteristics;
             }
-            sectionData.size = (((uintptr_t)sectionAddress) + sectionSize) - (uintptr_t) sectionData.address;
+            sectionData.size = (((uintptr_t)sectionAddress) + ((uintptr_t) sectionSize)) - (uintptr_t) sectionData.address;
             continue;
         }
 
@@ -868,7 +868,11 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             cmp = _wcsnicmp(searchKey, resourceString->NameString, resourceString->Length);
             if (cmp == 0) {
                 // Handle partial match
-                cmp = searchKeyLen - resourceString->Length;
+                if (searchKeyLen > resourceString->Length) {
+                    cmp = 1;
+                } else if (searchKeyLen < resourceString->Length) {
+                    cmp = -1;
+                }
             }
             if (cmp < 0) {
                 end = (middle != end ? middle : middle-1);
