@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-if /I "%PLATFORM" == "x64" (
+if /I "%PLATFORM%" == "x64" (
     set CMAKE_GEN_SUFFIX= Win64
 ) else (
     set CMAKE_GEN_SUFFIX=
