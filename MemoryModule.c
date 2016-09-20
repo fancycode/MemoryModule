@@ -102,6 +102,11 @@ AlignValueUp(size_t value, size_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
+static inline void*
+OffsetPointer(void* data, ptrdiff_t offset) {
+    return (void*) ((uintptr_t) data + offset);
+}
+
 static inline void
 OutputLastError(const char *msg)
 {
@@ -153,9 +158,11 @@ CopySections(const unsigned char *data, size_t size, PIMAGE_NT_HEADERS old_heade
                 }
 
                 // Always use position from file to support alignments smaller
-                // than page size.
+                // than page size (allocation above will align to page size).
                 dest = codeBase + section->VirtualAddress;
-                section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
+                // NOTE: On 64bit systems we truncate to 32bit here but expand
+                // again later when "PhysicalAddress" is used.
+                section->Misc.PhysicalAddress = (DWORD) ((uintptr_t) dest & 0xffffffff);
                 memset(dest, 0, section_size);
             }
 
@@ -178,10 +185,12 @@ CopySections(const unsigned char *data, size_t size, PIMAGE_NT_HEADERS old_heade
         }
 
         // Always use position from file to support alignments smaller
-        // than page size.
+        // than page size (allocation above will align to page size).
         dest = codeBase + section->VirtualAddress;
         memcpy(dest, data + section->PointerToRawData, section->SizeOfRawData);
-        section->Misc.PhysicalAddress = (DWORD) (uintptr_t) dest;
+        // NOTE: On 64bit systems we truncate to 32bit here but expand
+        // again later when "PhysicalAddress" is used.
+        section->Misc.PhysicalAddress = (DWORD) ((uintptr_t) dest & 0xffffffff);
     }
 
     return TRUE;
@@ -261,7 +270,9 @@ FinalizeSections(PMEMORYMODULE module)
     int i;
     PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(module->headers);
 #ifdef _WIN64
-    uintptr_t imageOffset = (module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
+    // "PhysicalAddress" might have been truncated to 32bit above, expand to
+    // 64bits again.
+    uintptr_t imageOffset = ((uintptr_t) module->headers->OptionalHeader.ImageBase & 0xffffffff00000000);
 #else
     static const uintptr_t imageOffset = 0;
 #endif
@@ -345,7 +356,7 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
     for (; relocation->VirtualAddress > 0; ) {
         DWORD i;
         unsigned char *dest = codeBase + relocation->VirtualAddress;
-        unsigned short *relInfo = (unsigned short *)((unsigned char *)relocation + IMAGE_SIZEOF_BASE_RELOCATION);
+        unsigned short *relInfo = (unsigned short*) OffsetPointer(relocation, IMAGE_SIZEOF_BASE_RELOCATION);
         for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++) {
             // the upper 4 bits define the type of relocation
             int type = *relInfo >> 12;
@@ -382,7 +393,7 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
         }
 
         // advance to next relocation block
-        relocation = (PIMAGE_BASE_RELOCATION) (((char *) relocation) + relocation->SizeOfBlock);
+        relocation = (PIMAGE_BASE_RELOCATION) OffsetPointer(relocation, relocation->SizeOfBlock);
     }
     return TRUE;
 }
@@ -861,7 +872,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             int cmp;
             PIMAGE_RESOURCE_DIR_STRING_U resourceString;
             middle = (start + end) >> 1;
-            resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) root) + (entries[middle].Name & 0x7FFFFFFF));
+            resourceString = (PIMAGE_RESOURCE_DIR_STRING_U) OffsetPointer(root, entries[middle].Name & 0x7FFFFFFF);
             cmp = _wcsnicmp(searchKey, resourceString->NameString, resourceString->Length);
             if (cmp == 0) {
                 // Handle partial match
@@ -993,7 +1004,7 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
     data = (PIMAGE_RESOURCE_DIR_STRING_U) MemoryLoadResource(module, resource);
     id = id & 0x0f;
     while (id--) {
-        data = (PIMAGE_RESOURCE_DIR_STRING_U) (((char *) data) + (data->Length + 1) * sizeof(WCHAR));
+        data = (PIMAGE_RESOURCE_DIR_STRING_U) OffsetPointer(data, (data->Length + 1) * sizeof(WCHAR));
     }
     if (data->Length == 0) {
         SetLastError(ERROR_RESOURCE_NAME_NOT_FOUND);
