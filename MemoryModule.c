@@ -27,6 +27,10 @@
 #include <windows.h>
 #include <winnt.h>
 #include <stddef.h>
+#ifdef __MINGW32__
+// for mbstowcs_s and wcstombs_s
+#include <stdlib.h>
+#endif
 #include <tchar.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
