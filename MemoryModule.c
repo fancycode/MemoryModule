@@ -1162,7 +1162,9 @@ MemoryLoadStringExW(HMEMORYMODULE module, UINT id, LPWSTR buffer, int maxsize, W
 
     size = data->Length;
     if (size >= maxsize) {
-        size = maxsize - 1;
+        size = maxsize;
+    } else {
+        buffer[size] = 0;
     }
     wcsncpy(buffer, data->NameString, size);
     return size;
