@@ -39,6 +39,12 @@ typedef void *HCUSTOMMODULE;
 extern "C" {
 #endif
 
+#if defined(UNICODE)
+#define MEMORYMODULE_FUNCTION_AW(func) func##W
+#else
+#define MEMORYMODULE_FUNCTION_AW(func) func##A
+#endif
+
 typedef LPVOID (*CustomAllocFunc)(LPVOID, SIZE_T, DWORD, DWORD, void*);
 typedef BOOL (*CustomFreeFunc)(LPVOID, SIZE_T, DWORD, void*);
 typedef HCUSTOMMODULE (*CustomLoadLibraryFunc)(LPCSTR, void *);
@@ -94,12 +100,16 @@ int MemoryCallEntryPoint(HMEMORYMODULE);
 /**
  * Find the location of a resource with the specified type and name.
  */
-HMEMORYRSRC MemoryFindResource(HMEMORYMODULE, LPCTSTR, LPCTSTR);
+HMEMORYRSRC MemoryFindResourceA(HMEMORYMODULE, LPCSTR, LPCSTR);
+HMEMORYRSRC MemoryFindResourceW(HMEMORYMODULE, LPCWSTR, LPCWSTR);
+#define MemoryFindResource MEMORYMODULE_FUNCTION_AW(MemoryFindResource)
 
 /**
  * Find the location of a resource with the specified type, name and language.
  */
-HMEMORYRSRC MemoryFindResourceEx(HMEMORYMODULE, LPCTSTR, LPCTSTR, WORD);
+HMEMORYRSRC MemoryFindResourceExA(HMEMORYMODULE, LPCSTR, LPCSTR, WORD);
+HMEMORYRSRC MemoryFindResourceExW(HMEMORYMODULE, LPCWSTR, LPCWSTR, WORD);
+#define MemoryFindResourceEx MEMORYMODULE_FUNCTION_AW(MemoryFindResourceEx)
 
 /**
  * Get the size of the resource in bytes.
@@ -114,12 +124,16 @@ LPVOID MemoryLoadResource(HMEMORYMODULE, HMEMORYRSRC);
 /**
  * Load a string resource.
  */
-int MemoryLoadString(HMEMORYMODULE, UINT, LPTSTR, int);
+int MemoryLoadStringA(HMEMORYMODULE, UINT, LPSTR, int);
+int MemoryLoadStringW(HMEMORYMODULE, UINT, LPWSTR, int);
+#define MemoryLoadString MEMORYMODULE_FUNCTION_AW(MemoryLoadString)
 
 /**
  * Load a string resource with a given language.
  */
-int MemoryLoadStringEx(HMEMORYMODULE, UINT, LPTSTR, int, WORD);
+int MemoryLoadStringExA(HMEMORYMODULE, UINT, LPSTR, int, WORD);
+int MemoryLoadStringExW(HMEMORYMODULE, UINT, LPWSTR, int, WORD);
+#define MemoryLoadStringEx MEMORYMODULE_FUNCTION_AW(MemoryLoadStringEx)
 
 /**
 * Default implementation of CustomAllocFunc that calls VirtualAlloc
