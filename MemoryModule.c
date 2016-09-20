@@ -867,6 +867,12 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntryA(
     LPCSTR key)
 {
     PIMAGE_RESOURCE_DIRECTORY_ENTRY result = NULL;
+    size_t searchKeyLen;
+#define MAX_LOCAL_KEY_LENGTH 2048
+    // In most cases resource names are short, so optimize for that by
+    // using a pre-allocated array.
+    wchar_t _searchKeySpace[MAX_LOCAL_KEY_LENGTH+1];
+    LPWSTR _searchKey;
 
     if (!IS_INTRESOURCE(key) && key[0] == '#') {
         // special case: resource id given as string
@@ -886,12 +892,7 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntryA(
 
     // Resource names are always stored using 16bit characters, need to
     // convert string we search for.
-#define MAX_LOCAL_KEY_LENGTH 2048
-    size_t searchKeyLen = strlen(key);
-    // In most cases resource names are short, so optimize for that by
-    // using a pre-allocated array.
-    wchar_t _searchKeySpace[MAX_LOCAL_KEY_LENGTH+1];
-    LPWSTR _searchKey;
+    searchKeyLen = strlen(key);
     if (searchKeyLen > MAX_LOCAL_KEY_LENGTH) {
         size_t _searchKeySize = (searchKeyLen + 1) * sizeof(wchar_t);
         _searchKey = (LPWSTR) malloc(_searchKeySize);
