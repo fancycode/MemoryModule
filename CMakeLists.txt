@@ -40,11 +40,20 @@ else ()
     message (STATUS "Compile without UNICODE support")
 endif ()
 
+option(TESTSUITE "Compile with TESTSUITE support" OFF)
+if (TESTSUITE)
+    message (STATUS "Compile with TESTSUITE support")
+    add_definitions ("-DTESTSUITE")
+else ()
+    message (STATUS "Compile without TESTSUITE support")
+endif ()
+
 add_library (MemoryModule STATIC MemoryModule.c MemoryModule.h)
 if (NOT MSVC)
     set_target_properties ("MemoryModule" PROPERTIES PREFIX "")
 endif ()
 
 add_subdirectory (example)
+add_subdirectory (tests)
 
 enable_language (RC)
