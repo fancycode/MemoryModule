@@ -30,7 +30,7 @@ addons:
     - wine
 
 before_script:
-  - if [ ! -z "$CMAKE" ]; then cmake -DPLATFORM=$PLATFORM -D UNICODE=$UNICODE -H. -B.; fi
+  - if [ ! -z "$CMAKE" ]; then cmake -DPLATFORM=$PLATFORM -DUNICODE=$UNICODE -DTESTSUITE=ON -H. -B.; fi
 
 script:
   - if [ -z "$CMAKE" ]; then make PLATFORM=$PLATFORM UNICODE=$UNICODE; fi
@@ -39,3 +39,5 @@ script:
   - cd example/DllLoader
   - ../../tests/runwine.sh $PLATFORM ./DllLoader.exe
   - ../../tests/runwine.sh $PLATFORM ./DllLoaderLoader.exe
+  - cd ../../tests
+  - ./runwine.sh $PLATFORM ./TestSuite.exe

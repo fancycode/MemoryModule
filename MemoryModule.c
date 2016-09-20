@@ -1028,7 +1028,6 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
 
 #ifdef TESTSUITE
 #include <stdio.h>
-#include <inttypes.h>
 
 #ifndef PRIxPTR
 #ifdef _WIN64
@@ -1064,7 +1063,8 @@ static const uintptr_t AlignValueUpTests[][3] = {
 
 BOOL MemoryModuleTestsuite() {
     BOOL success = TRUE;
-    for (size_t idx = 0; AlignValueDownTests[idx][0]; ++idx) {
+    size_t idx;
+    for (idx = 0; AlignValueDownTests[idx][0]; ++idx) {
         const uintptr_t* tests = AlignValueDownTests[idx];
         uintptr_t value = AlignValueDown(tests[0], tests[1]);
         if (value != tests[2]) {
@@ -1073,7 +1073,7 @@ BOOL MemoryModuleTestsuite() {
             success = FALSE;
         }
     }
-    for (size_t idx = 0; AlignValueDownTests[idx][0]; ++idx) {
+    for (idx = 0; AlignValueDownTests[idx][0]; ++idx) {
         const uintptr_t* tests = AlignValueUpTests[idx];
         uintptr_t value = AlignValueUp(tests[0], tests[1]);
         if (value != tests[2]) {
