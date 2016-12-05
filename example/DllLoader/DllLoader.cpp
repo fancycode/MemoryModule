@@ -13,7 +13,7 @@
 
 typedef int (*addNumberProc)(int, int);
 
-#define DLL_FILE TEXT("..\\SampleDLL\\SampleDLL.dll")
+#define DLL_FILE TEXT("..\\SampleDLL\\Debug\\SampleDLL.dll")
 
 void LoadFromFile(void)
 {
@@ -333,8 +333,12 @@ void TestCustomAllocAndFree(void)
 
 int main()
 {
-    LoadFromFile();
+    // Oddly, doing this first seems to make the load from memory work
+    //OutputDebugString("Loading from File\n");
+    //--> LoadFromFile();
+
     printf("\n\n");
+    OutputDebugString("Loading from Memory\n");
     LoadFromMemory();
     printf("\n\n");
     TestCustomAllocAndFree();
