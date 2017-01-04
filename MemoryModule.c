@@ -392,6 +392,8 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
             }
         }
 
+		// flush instruction cache to avoid executing stale code after performing relocations
+		FlushInstructionCache(GetCurrentProcess(), (LPCVOID) dest, module->pageSize);
         // advance to next relocation block
         relocation = (PIMAGE_BASE_RELOCATION) OffsetPointer(relocation, relocation->SizeOfBlock);
     }
@@ -645,9 +647,6 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     } else {
         result->isRelocated = TRUE;
     }
-	
-    // flush instruction cache to avoid executing stale code after performing relocations
-    FlushInstructionCache((HANDLE)-1, NULL, 0);
 
     // load required dlls and adjust function table of imports
     if (!BuildImportTable(result)) {
