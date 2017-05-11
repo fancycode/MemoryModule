@@ -597,6 +597,33 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
             return NULL;
         }
     }
+	
+#ifdef _WIN64
+    // Check if the memory-block spans the 4GB border
+	// ---
+	// If it does, we have problems, so allocate a new 
+	// block that is fully beyond the 4GB border and
+	// free the current one.  This will be duplicated on
+	// every subsequent load until some memory allocation 
+	// happens in the memory block covered by this allocation,
+	// at which point all the memory allocations will be above the 
+	// 4 GB boundary and this conditional will not be hit again
+    if (code < (LPVOID)0x100000000 && code + alignedImageSize >= (LPVOID)0x100000000)
+    {
+        auto old_code = code;
+        code = (unsigned char *)allocMemory(NULL,
+            alignedImageSize,
+            MEM_RESERVE | MEM_COMMIT,
+            PAGE_READWRITE,
+            userdata);
+        freeMemory(old_code, 0, MEM_RELEASE, userdata);
+        if (code == NULL) {
+            SetLastError(ERROR_OUTOFMEMORY);
+            return NULL;
+        }
+    }
+#endif
+
 
     result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORYMODULE));
     if (result == NULL) {
