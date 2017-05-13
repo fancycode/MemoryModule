@@ -63,7 +63,7 @@ typedef int (WINAPI *ExeEntryProc)(void);
 // simple linked list to store memory blocks that span the 4GB boundary 
 // (which can't be used as memory for memorymodule)
 typedef struct tagPOINTER_LIST{
-    tagPOINTER_LIST* next;
+    struct tagPOINTER_LIST* next;
     unsigned char *address;
 }POINTER_LIST;
 #endif
