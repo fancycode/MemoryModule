@@ -16,5 +16,5 @@ file gets deleted.
 `MemoryModule` is a library that can be used to load a DLL completely from
 memory - without storing on the disk first.
 
-See `doc/readme.txt` for more informations about the format of a DLL file and
+See `doc/readme.rst` for more informations about the format of a DLL file and
 a tutorial how they can be loaded directly.
