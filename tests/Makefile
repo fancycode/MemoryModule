@@ -47,6 +47,7 @@ TEST_DLLS = \
 	test-align-800.dll \
 	test-align-900.dll \
 	test-relocate.dll \
+	test-exports.dll
 
 LOADDLL_OBJ = LoadDll.o ../MemoryModule.o
 TESTSUITE_OBJ = TestSuite.o ../MemoryModule.o
@@ -71,6 +72,12 @@ test-align-%.dll: $(DLL_OBJ)
 
 test-relocate.dll: $(DLL_OBJ)
 	$(CXX) $(LDFLAGS_DLL) $(LDFLAGS) -Wl,--image-base -Wl,0x20000000 -o $@ $(DLL_OBJ)
+
+test-exports.dll: SampleExports.o
+	$(CXX) $(LDFLAGS_DLL) $(LDFLAGS) -o $@ SampleExports.o
+
+SampleExports.cpp: generate-exports.sh
+	./generate-exports.sh
 
 %.o: %.cpp
 	$(CXX) $(CFLAGS) $(CFLAGS_DLL) -c $<
