@@ -22,6 +22,12 @@
  * Portions created by Joachim Bauch are Copyright (C) 2004-2015
  * Joachim Bauch. All Rights Reserved.
  *
+ *
+ * THeller: Added binary search in MemoryGetProcAddress function
+ * (#define USE_BINARY_SEARCH to enable it).  This gives a very large
+ * speedup for libraries that exports lots of functions.
+ *
+ * These portions are Copyright (C) 2013 Thomas Heller.
  */
 
 #include <windows.h>
@@ -56,6 +62,11 @@
 
 #include "MemoryModule.h"
 
+struct ExportNameEntry {
+    LPCSTR name;
+    WORD idx;
+};
+
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 typedef int (WINAPI *ExeEntryProc)(void);
 
@@ -72,6 +83,7 @@ typedef struct {
     CustomLoadLibraryFunc loadLibrary;
     CustomGetProcAddressFunc getProcAddress;
     CustomFreeLibraryFunc freeLibrary;
+    struct ExportNameEntry *nameExportsTable;
     void *userdata;
     ExeEntryProc exeEntry;
     DWORD pageSize;
@@ -688,12 +700,27 @@ error:
     return NULL;
 }
 
-FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
+static int _compare(const void *a, const void *b)
 {
-    unsigned char *codeBase = ((PMEMORYMODULE)module)->codeBase;
+    const struct ExportNameEntry *p1 = (const struct ExportNameEntry*) a;
+    const struct ExportNameEntry *p2 = (const struct ExportNameEntry*) b;
+    return _stricmp(p1->name, p2->name);
+}
+
+static int _find(const void *a, const void *b)
+{
+    LPCSTR *name = (LPCSTR *) a;
+    const struct ExportNameEntry *p = (const struct ExportNameEntry*) b;
+    return _stricmp(*name, p->name);
+}
+
+FARPROC MemoryGetProcAddress(HMEMORYMODULE mod, LPCSTR name)
+{
+    PMEMORYMODULE module = (PMEMORYMODULE)mod;
+    unsigned char *codeBase = module->codeBase;
     DWORD idx = 0;
     PIMAGE_EXPORT_DIRECTORY exports;
-    PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY((PMEMORYMODULE)module, IMAGE_DIRECTORY_ENTRY_EXPORT);
+    PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_EXPORT);
     if (directory->Size == 0) {
         // no export table found
         SetLastError(ERROR_PROC_NOT_FOUND);
@@ -715,25 +742,44 @@ FARPROC MemoryGetProcAddress(HMEMORYMODULE module, LPCSTR name)
         }
 
         idx = LOWORD(name) - exports->Base;
+    } else if (!exports->NumberOfNames) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return NULL;
     } else {
-        // search function name in list of exported names
-        DWORD i;
-        DWORD *nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
-        WORD *ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
-        BOOL found = FALSE;
-        for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++) {
-            if (_stricmp(name, (const char *) (codeBase + (*nameRef))) == 0) {
-                idx = *ordinal;
-                found = TRUE;
-                break;
+        const struct ExportNameEntry *found;
+
+        // Lazily build name table and sort it by names
+        if (!module->nameExportsTable) {
+            DWORD i;
+            DWORD *nameRef = (DWORD *) (codeBase + exports->AddressOfNames);
+            WORD *ordinal = (WORD *) (codeBase + exports->AddressOfNameOrdinals);
+            struct ExportNameEntry *entry = (struct ExportNameEntry*) malloc(exports->NumberOfNames * sizeof(struct ExportNameEntry));
+            module->nameExportsTable = entry;
+            if (!entry) {
+                SetLastError(ERROR_OUTOFMEMORY);
+                return NULL;
             }
+            for (i=0; i<exports->NumberOfNames; i++, nameRef++, ordinal++, entry++) {
+                entry->name = (const char *) (codeBase + (*nameRef));
+                entry->idx = *ordinal;
+            }
+            qsort(module->nameExportsTable,
+                    exports->NumberOfNames,
+                    sizeof(struct ExportNameEntry), _compare);
         }
 
+        // search function name in list of exported names with binary search
+        found = (const struct ExportNameEntry*) bsearch(&name,
+                module->nameExportsTable,
+                exports->NumberOfNames,
+                sizeof(struct ExportNameEntry), _find);
         if (!found) {
             // exported symbol not found
             SetLastError(ERROR_PROC_NOT_FOUND);
             return NULL;
         }
+
+        idx = found->idx;
     }
 
     if (idx > exports->NumberOfFunctions) {
@@ -759,6 +805,7 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
         (*DllEntry)((HINSTANCE)module->codeBase, DLL_PROCESS_DETACH, 0);
     }
 
+    free(module->nameExportsTable);
     if (module->modules != NULL) {
         // free previously opened libraries
         int i;
