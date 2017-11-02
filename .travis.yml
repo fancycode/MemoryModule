@@ -22,7 +22,8 @@ addons:
     - binutils-mingw-w64-i686
     - binutils-mingw-w64-x86-64
     - cmake
-    - mingw-w64-dev
+    - mingw-w64-i686-dev
+    - mingw-w64-x86-64-dev
     - g++-mingw-w64-i686
     - g++-mingw-w64-x86-64
     - gcc-mingw-w64-i686
