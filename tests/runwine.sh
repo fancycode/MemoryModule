@@ -10,6 +10,6 @@ else
     export WINEPREFIX=${HOME}/.wine/
     WINE=wine
 fi
-export WINEPATH=/usr/lib/gcc/${PLATFORM}-w64-mingw32/4.8/;/usr/${PLATFORM}-w64-mingw32/lib
+export WINEPATH=/usr/lib/gcc/${PLATFORM}-w64-mingw32/4.8/:/usr/${PLATFORM}-w64-mingw32/lib
 
 exec ${WINE} $@
