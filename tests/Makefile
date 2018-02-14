@@ -89,7 +89,7 @@ SampleExports.cpp: generate-exports.sh
 	$(RC) $(RCFLAGS) -o $*.res $<
 
 clean:
-	$(RM) -rf LoadDll.exe $(TEST_DLLS) $(LOADDLL_OBJ) $(DLL_OBJ)
+	$(RM) -rf LoadDll.exe $(TEST_DLLS) $(LOADDLL_OBJ) $(DLL_OBJ) $(TESTSUITE_OBJ) SampleExports.o
 
 test: all
 	./runwine.sh $(PLATFORM) TestSuite.exe
