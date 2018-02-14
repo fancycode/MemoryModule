@@ -145,6 +145,7 @@ static void FreePointerList(POINTER_LIST* head, CustomFreeFunc freeMemory, void*
         freeMemory(current->address, 0, MEM_RELEASE, userdata);
         current = current->next;
         free(node);
+        node = current;
     }
 }
 #endif
