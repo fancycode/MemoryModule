@@ -70,6 +70,15 @@ struct ExportNameEntry {
 typedef BOOL (WINAPI *DllEntryProc)(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 typedef int (WINAPI *ExeEntryProc)(void);
 
+#ifdef _WIN64
+// simple linked list to store memory blocks that span the 4GB boundary 
+// (which can't be used as memory for memorymodule)
+typedef struct tagPOINTER_LIST{
+    struct tagPOINTER_LIST* next;
+    unsigned char *address;
+}POINTER_LIST;
+#endif
+
 typedef struct {
     PIMAGE_NT_HEADERS headers;
     unsigned char *codeBase;
@@ -87,6 +96,9 @@ typedef struct {
     void *userdata;
     ExeEntryProc exeEntry;
     DWORD pageSize;
+#ifdef _WIN64
+    POINTER_LIST* blockedMemory;
+#endif
 } MEMORYMODULE, *PMEMORYMODULE;
 
 typedef struct {
@@ -136,6 +148,19 @@ OutputLastError(const char *msg)
     LocalFree(tmp);
 #endif
 }
+
+#ifdef _WIN64
+static void FreePointerList(POINTER_LIST* head, CustomFreeFunc freeMemory, void* userdata) {
+    POINTER_LIST* node = head;
+    while(node != NULL) {
+        POINTER_LIST* current = node;
+        freeMemory(current->address, 0, MEM_RELEASE, userdata);
+        current = current->next;
+        free(node);
+        node = current;
+    }
+}
+#endif
 
 static BOOL
 CheckSize(size_t size, size_t expected) {
@@ -535,6 +560,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     size_t optionalSectionSize;
     size_t lastSectionEnd = 0;
     size_t alignedImageSize;
+#ifdef _WIN64
+    POINTER_LIST* blockedMemory = NULL;
+#endif
 
     if (!CheckSize(size, sizeof(IMAGE_DOS_HEADER))) {
         return NULL;
@@ -610,9 +638,41 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
         }
     }
 
+#ifdef _WIN64
+    // check that memory-block does not span over the 4GB border
+    if ((unsigned long long)(code) / 0x100000000 < (unsigned long long)(code + alignedImageSize) / 0x100000000)
+    {
+        POINTER_LIST** current_node_ptr = &blockedMemory;
+
+        do
+        {
+            // store code to keep bad address blocked
+            *current_node_ptr = (POINTER_LIST*)malloc(sizeof(POINTER_LIST));
+            (*current_node_ptr)->next = NULL;
+            (*current_node_ptr)->address = code;
+            current_node_ptr = &(*current_node_ptr)->next;
+
+            code = (unsigned char *)allocMemory(NULL,
+                alignedImageSize,
+                MEM_RESERVE | MEM_COMMIT,
+                PAGE_READWRITE,
+                userdata);
+
+            if(code == NULL) {
+                FreePointerList(blockedMemory, freeMemory, userdata);
+                SetLastError(ERROR_OUTOFMEMORY);
+                return NULL;
+            }
+        } while((unsigned long long)(code) / 0x100000000 < (unsigned long long)(code + alignedImageSize) / 0x100000000);
+    }
+#endif
+
     result = (PMEMORYMODULE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(MEMORYMODULE));
     if (result == NULL) {
         freeMemory(code, 0, MEM_RELEASE, userdata);
+#ifdef _WIN64
+        FreePointerList(blockedMemory, freeMemory, userdata);
+#endif
         SetLastError(ERROR_OUTOFMEMORY);
         return NULL;
     }
@@ -626,6 +686,9 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     result->freeLibrary = freeLibrary;
     result->userdata = userdata;
     result->pageSize = sysInfo.dwPageSize;
+#ifdef _WIN64
+    result->blockedMemory = blockedMemory;
+#endif
 
     if (!CheckSize(size, old_header->OptionalHeader.SizeOfHeaders)) {
         goto error;
@@ -822,6 +885,11 @@ void MemoryFreeLibrary(HMEMORYMODULE mod)
         // release memory of library
         module->free(module->codeBase, 0, MEM_RELEASE, module->userdata);
     }
+
+#ifdef _WIN64
+    // release blockeded memory
+    FreePointerList(module->blockedMemory, module->free, module->userdata);
+#endif
 
     HeapFree(GetProcessHeap(), 0, module);
 }
