@@ -766,14 +766,14 @@ static int _compare(const void *a, const void *b)
 {
     const struct ExportNameEntry *p1 = (const struct ExportNameEntry*) a;
     const struct ExportNameEntry *p2 = (const struct ExportNameEntry*) b;
-    return _stricmp(p1->name, p2->name);
+    return strcmp(p1->name, p2->name);
 }
 
 static int _find(const void *a, const void *b)
 {
     LPCSTR *name = (LPCSTR *) a;
     const struct ExportNameEntry *p = (const struct ExportNameEntry*) b;
-    return _stricmp(*name, p->name);
+    return strcmp(*name, p->name);
 }
 
 FARPROC MemoryGetProcAddress(HMEMORYMODULE mod, LPCSTR name)
