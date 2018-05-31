@@ -11,6 +11,7 @@
 
 #include "../MemoryModule.h"
 
+typedef int (*addProc)(int);
 typedef int (*addNumberProc)(int, int);
 
 // Thanks to Tim Cooper (from http://stackoverflow.com/a/8584708)
@@ -127,6 +128,11 @@ BOOL LoadFromMemory(char *filename)
     }
 
     addNumber = (addNumberProc)MemoryGetProcAddress(handle, "addNumbers");
+    if (!addNumber) {
+        _tprintf(_T("MemoryGetProcAddress(\"addNumber\") returned NULL\n"));
+        result = FALSE;
+        goto exit;
+    }
     _tprintf(_T("From memory: %d\n"), addNumber(1, 2));
 
     // the DLL only exports one function, try to load by ordinal value
@@ -218,6 +224,65 @@ exit:
     return result;
 }
 
+BOOL LoadExportsFromMemory(char *filename)
+{
+    FILE *fp;
+    unsigned char *data=NULL;
+    long size;
+    size_t read;
+    HMEMORYMODULE handle = NULL;
+    int i;
+    BOOL result = TRUE;
+
+    fp = fopen(filename, "rb");
+    if (fp == NULL)
+    {
+        printf("Can't open DLL file \"%s\".", filename);
+        result = FALSE;
+        goto exit;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    assert(size > 0);
+    data = (unsigned char *)malloc(size);
+    assert(data != NULL);
+    fseek(fp, 0, SEEK_SET);
+    read = fread(data, 1, size, fp);
+    assert(read == static_cast<size_t>(size));
+    fclose(fp);
+
+    handle = MemoryLoadLibrary(data, size);
+    if (handle == NULL)
+    {
+        _tprintf(_T("Can't load library from memory.\n"));
+        result = FALSE;
+        goto exit;
+    }
+
+    for (i = 1; i <= 100; i++) {
+        char name[100];
+        sprintf(name, "add%d", i);
+        addProc addNumber = (addProc)MemoryGetProcAddress(handle, name);
+        if (!addNumber) {
+            _tprintf(_T("MemoryGetProcAddress(\"%s\") returned NULL\n"), name);
+            result = FALSE;
+            goto exit;
+        }
+        int result = addNumber(1);
+        if (result != 1 + i) {
+            _tprintf(_T("(\"%s\") returned %d, expected %d\n"), name, result, 1 + i);
+            result = FALSE;
+            goto exit;
+        }
+        _tprintf(_T("%s: %d\n"), name, result);
+    }
+exit:
+    MemoryFreeLibrary(handle);
+    free(data);
+    return result;
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
@@ -225,8 +290,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (!LoadFromMemory(argv[1])) {
-        return 2;
+    if (!strstr((const char *) argv[1], "exports")) {
+        if (!LoadFromMemory(argv[1])) {
+            return 2;
+        }
+    } else {
+        if (!LoadExportsFromMemory(argv[1])) {
+            return 2;
+        }
     }
 
     return 0;

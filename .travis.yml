@@ -1,33 +1,88 @@
-sudo: false
+sudo: true
 
-env:
-  - PLATFORM=x86_64 UNICODE=  CMAKE=
-  - PLATFORM=i686   UNICODE=  CMAKE=
-  - PLATFORM=x86_64 UNICODE=1 CMAKE=
-  - PLATFORM=i686   UNICODE=1 CMAKE=
-  - PLATFORM=x86_64 UNICODE=  CMAKE=1
-  - PLATFORM=i686   UNICODE=  CMAKE=1
-  - PLATFORM=x86_64 UNICODE=1 CMAKE=1
-  - PLATFORM=i686   UNICODE=1 CMAKE=1
+matrix:
+  include:
+    - env: PLATFORM=x86_64 UNICODE=  CMAKE=
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-x86-64
+            - mingw-w64-x86-64-dev
+            - g++-mingw-w64-x86-64
+            - gcc-mingw-w64-x86-64
+            - wine:amd64
+    - env: PLATFORM=i686   UNICODE=  CMAKE=
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-i686
+            - mingw-w64-i686-dev
+            - g++-mingw-w64-i686
+            - gcc-mingw-w64-i686
+            - wine:i386
+    - env: PLATFORM=x86_64 UNICODE=1 CMAKE=
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-x86-64
+            - mingw-w64-x86-64-dev
+            - g++-mingw-w64-x86-64
+            - gcc-mingw-w64-x86-64
+            - wine:amd64
+    - env: PLATFORM=i686   UNICODE=1 CMAKE=
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-i686
+            - mingw-w64-i686-dev
+            - g++-mingw-w64-i686
+            - gcc-mingw-w64-i686
+            - wine:i386
+    - env: PLATFORM=x86_64 UNICODE=  CMAKE=1
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-x86-64
+            - mingw-w64-x86-64-dev
+            - g++-mingw-w64-x86-64
+            - gcc-mingw-w64-x86-64
+            - wine:amd64
+    - env: PLATFORM=i686   UNICODE=  CMAKE=1
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-i686
+            - cmake
+            - mingw-w64-i686-dev
+            - g++-mingw-w64-i686
+            - gcc-mingw-w64-i686
+            - wine:i386
+    - env: PLATFORM=x86_64 UNICODE=1 CMAKE=1
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-x86-64
+            - cmake
+            - mingw-w64-x86-64-dev
+            - g++-mingw-w64-x86-64
+            - gcc-mingw-w64-x86-64
+            - wine:amd64
+    - env: PLATFORM=i686   UNICODE=1 CMAKE=1
+      addons:
+        apt:
+          packages:
+            - binutils-mingw-w64-i686
+            - cmake
+            - mingw-w64-i686-dev
+            - g++-mingw-w64-i686
+            - gcc-mingw-w64-i686
+            - wine:i386
 
 language: cpp
 
 cache:
   - apt
   - ccache
-
-addons:
-  apt:
-    packages:
-    - binutils-mingw-w64-i686
-    - binutils-mingw-w64-x86-64
-    - cmake
-    - mingw-w64-dev
-    - g++-mingw-w64-i686
-    - g++-mingw-w64-x86-64
-    - gcc-mingw-w64-i686
-    - gcc-mingw-w64-x86-64
-    - wine
 
 before_script:
   - if [ ! -z "$CMAKE" ]; then cmake -DPLATFORM=$PLATFORM -DUNICODE=$UNICODE -DTESTSUITE=ON -H. -B.; fi
