@@ -48,5 +48,11 @@ EOF
 done
 
 cat >> SampleExports.cpp << EOF
+#ifdef _WIN64
+SAMPLEDLL_API void throwException(void)
+{
+    throw 42;
+}
+#endif
 }
 EOF

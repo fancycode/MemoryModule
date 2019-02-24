@@ -74,7 +74,7 @@ test-relocate.dll: $(DLL_OBJ)
 	$(CXX) $(LDFLAGS_DLL) $(LDFLAGS) -Wl,--image-base -Wl,0x20000000 -o $@ $(DLL_OBJ)
 
 test-exports.dll: SampleExports.o
-	$(CXX) $(LDFLAGS_DLL) $(LDFLAGS) -o $@ SampleExports.o
+	$(CXX) $(LDFLAGS_DLL) $(LDFLAGS) -static -lstdc++ -dynamic -o $@ SampleExports.o
 
 SampleExports.cpp: generate-exports.sh
 	./generate-exports.sh

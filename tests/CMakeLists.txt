@@ -5,6 +5,8 @@ set (sources_testsuite
 if (NOT MSVC)
     set (CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "-static")
     set (CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "-static")
+else ()
+    set (CMAKE_CXX_FLAGS "/EHsc")
 endif ()
 
 add_executable (TestSuite ${sources_testsuite})

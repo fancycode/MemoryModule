@@ -13,6 +13,9 @@
 
 typedef int (*addProc)(int);
 typedef int (*addNumberProc)(int, int);
+#ifdef _WIN64
+typedef void (*throwExceptionProc)(void);
+#endif
 
 // Thanks to Tim Cooper (from http://stackoverflow.com/a/8584708)
 const char *sstrstr(const char *haystack, const char *needle, size_t length) {
@@ -283,6 +286,70 @@ exit:
     return result;
 }
 
+#ifdef _WIN64
+BOOL LoadExceptionsFromMemory(char *filename)
+{
+    FILE *fp;
+    unsigned char *data=NULL;
+    long size;
+    size_t read;
+    HMEMORYMODULE handle = NULL;
+    throwExceptionProc throwException;
+    BOOL result = TRUE;
+
+    fp = fopen(filename, "rb");
+    if (fp == NULL)
+    {
+        printf("Can't open DLL file \"%s\".", filename);
+        result = FALSE;
+        goto exit;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    assert(size > 0);
+    data = (unsigned char *)malloc(size);
+    assert(data != NULL);
+    fseek(fp, 0, SEEK_SET);
+    read = fread(data, 1, size, fp);
+    assert(read == static_cast<size_t>(size));
+    fclose(fp);
+
+    handle = MemoryLoadLibrary(data, size);
+    if (handle == NULL)
+    {
+        _tprintf(_T("Can't load library from memory.\n"));
+        result = FALSE;
+        goto exit;
+    }
+
+    throwException = (throwExceptionProc)MemoryGetProcAddress(handle, "throwException");
+    if (!throwException) {
+        _tprintf(_T("MemoryGetProcAddress(\"throwException\") returned NULL\n"));
+        result = FALSE;
+        goto exit;
+    }
+
+    try {
+        throwException();
+        _tprintf(_T("Should have caught exception.\n"));
+        result = FALSE;
+        goto exit;
+    } catch (int e) {
+        if (e != 42) {
+            _tprintf(_T("Should have caught exception 42, got %d instead\n"), e);
+            result = FALSE;
+            goto exit;
+        }
+    }
+
+exit:
+    MemoryFreeLibrary(handle);
+    free(data);
+    return result;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
@@ -298,6 +365,11 @@ int main(int argc, char* argv[])
         if (!LoadExportsFromMemory(argv[1])) {
             return 2;
         }
+#ifdef _WIN64
+        if (!LoadExceptionsFromMemory(argv[1])) {
+            return 2;
+        }
+#endif
     }
 
     return 0;
