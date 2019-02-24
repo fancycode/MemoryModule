@@ -80,6 +80,8 @@ matrix:
 
 language: cpp
 
+dist: xenial
+
 cache:
   - apt
   - ccache
