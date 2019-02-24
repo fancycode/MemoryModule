@@ -12,12 +12,18 @@
 #include "../../MemoryModule.h"
 
 typedef int (*addNumberProc)(int, int);
+#ifdef _WIN64
+typedef void (*throwExceptionProc)(void);
+#endif
 
 #define DLL_FILE TEXT("..\\SampleDLL\\SampleDLL.dll")
 
 void LoadFromFile(void)
 {
     addNumberProc addNumber;
+#ifdef _WIN64
+    throwExceptionProc throwException;
+#endif
     HRSRC resourceInfo;
     DWORD resourceSize;
     LPVOID resourceData;
@@ -42,6 +48,24 @@ void LoadFromFile(void)
 
     LoadString(handle, 20, buffer, sizeof(buffer));
     _tprintf(_T("String2: %s\n"), buffer);
+
+#ifdef _WIN64
+    throwException = (throwExceptionProc)GetProcAddress(handle, "throwException");
+    if (!throwException) {
+        _tprintf(_T("GetProcAddress(\"throwException\") returned NULL\n"));
+    } else {
+        try {
+            throwException();
+            _tprintf(_T("Should have caught exception.\n"));
+        } catch (int e) {
+            if (e != 42) {
+                _tprintf(_T("Should have caught exception 42, got %d instead\n"), e);
+            } else {
+                _tprintf(_T("Caught exception %d\n"), e);
+            }
+        }
+    }
+#endif
 
     FreeLibrary(handle);
 }
@@ -90,6 +114,9 @@ void LoadFromMemory(void)
     size_t size;
     HMEMORYMODULE handle;
     addNumberProc addNumber;
+#ifdef _WIN64
+    throwExceptionProc throwException;
+#endif
     HMEMORYRSRC resourceInfo;
     DWORD resourceSize;
     LPVOID resourceData;
@@ -123,6 +150,24 @@ void LoadFromMemory(void)
 
     MemoryLoadString(handle, 20, buffer, sizeof(buffer));
     _tprintf(_T("String2: %s\n"), buffer);
+
+#ifdef _WIN64
+    throwException = (throwExceptionProc)MemoryGetProcAddress(handle, "throwException");
+    if (!throwException) {
+        _tprintf(_T("MemoryGetProcAddress(\"throwException\") returned NULL\n"));
+    } else {
+        try {
+            throwException();
+            _tprintf(_T("Should have caught exception.\n"));
+        } catch (int e) {
+            if (e != 42) {
+                _tprintf(_T("Should have caught exception 42, got %d instead\n"), e);
+            } else {
+                _tprintf(_T("Caught exception %d\n"), e);
+            }
+        }
+    }
+#endif
 
     MemoryFreeLibrary(handle);
 

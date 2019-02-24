@@ -27,7 +27,7 @@ endif
 OBJ = SampleDLL.o SampleDLL.res
 
 SampleDLL.dll: $(OBJ)
-	$(LINK) $(LDFLAGS) -o SampleDLL.dll $(OBJ)
+	$(LINK) $(LDFLAGS) -static -lstdc++ -dynamic -o SampleDLL.dll $(OBJ)
 
 %.o: %.cpp
 	$(CXX) $(CFLAGS) -c $<
