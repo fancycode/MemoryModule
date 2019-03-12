@@ -33,6 +33,10 @@
 #include <windows.h>
 #include <winnt.h>
 #include <stddef.h>
+#ifdef __MINGW32__
+// for mbstowcs_s and wcstombs_s
+#include <stdlib.h>
+#endif
 #include <tchar.h>
 #ifdef DEBUG_OUTPUT
 #include <stdio.h>
@@ -963,8 +967,9 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
         // using a pre-allocated array.
         wchar_t _searchKeySpace[MAX_LOCAL_KEY_LENGTH+1];
         LPWSTR _searchKey;
+        size_t _searchKeySize;
         if (searchKeyLen > MAX_LOCAL_KEY_LENGTH) {
-            size_t _searchKeySize = (searchKeyLen + 1) * sizeof(wchar_t);
+            _searchKeySize = (searchKeyLen + 1) * sizeof(wchar_t);
             _searchKey = (LPWSTR) malloc(_searchKeySize);
             if (_searchKey == NULL) {
                 SetLastError(ERROR_OUTOFMEMORY);
@@ -972,10 +977,10 @@ static PIMAGE_RESOURCE_DIRECTORY_ENTRY _MemorySearchResourceEntry(
             }
         } else {
             _searchKey = &_searchKeySpace[0];
+            _searchKeySize = sizeof(_searchKeySpace);
         }
 
-        mbstowcs(_searchKey, key, searchKeyLen);
-        _searchKey[searchKeyLen] = 0;
+        mbstowcs_s(NULL, _searchKey, _searchKeySize, key, searchKeyLen);
         searchKey = _searchKey;
 #endif
         start = 0;
@@ -1102,7 +1107,7 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
 {
     HMEMORYRSRC resource;
     PIMAGE_RESOURCE_DIR_STRING_U data;
-    DWORD size;
+    int size;
     if (maxsize == 0) {
         return 0;
     }
@@ -1125,15 +1130,13 @@ MemoryLoadStringEx(HMEMORYMODULE module, UINT id, LPTSTR buffer, int maxsize, WO
     }
 
     size = data->Length;
-    if (size >= (DWORD) maxsize) {
-        size = maxsize;
-    } else {
-        buffer[size] = 0;
+    if (size >= maxsize) {
+        size = maxsize - 1;
     }
 #if defined(UNICODE)
-    wcsncpy(buffer, data->NameString, size);
+    wcsncpy_s(buffer, maxsize, data->NameString, size);
 #else
-    wcstombs(buffer, data->NameString, size);
+    wcstombs_s(NULL, buffer, maxsize, data->NameString, size);
 #endif
     return size;
 }
