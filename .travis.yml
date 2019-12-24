@@ -2,7 +2,7 @@ sudo: true
 
 matrix:
   include:
-    - env: PLATFORM=x86_64 UNICODE=  CMAKE=
+    - env: PLATFORM=x86_64 UNICODE=  CMAKE= WINE_PACKAGE=winehq-stable:amd64
       addons:
         apt:
           packages:
@@ -10,8 +10,7 @@ matrix:
             - mingw-w64-x86-64-dev
             - g++-mingw-w64-x86-64
             - gcc-mingw-w64-x86-64
-            - wine:amd64
-    - env: PLATFORM=i686   UNICODE=  CMAKE=
+    - env: PLATFORM=i686   UNICODE=  CMAKE= WINE_PACKAGE=winehq-stable:i386
       addons:
         apt:
           packages:
@@ -19,8 +18,7 @@ matrix:
             - mingw-w64-i686-dev
             - g++-mingw-w64-i686
             - gcc-mingw-w64-i686
-            - wine:i386
-    - env: PLATFORM=x86_64 UNICODE=1 CMAKE=
+    - env: PLATFORM=x86_64 UNICODE=1 CMAKE= WINE_PACKAGE=winehq-stable:amd64
       addons:
         apt:
           packages:
@@ -28,8 +26,7 @@ matrix:
             - mingw-w64-x86-64-dev
             - g++-mingw-w64-x86-64
             - gcc-mingw-w64-x86-64
-            - wine:amd64
-    - env: PLATFORM=i686   UNICODE=1 CMAKE=
+    - env: PLATFORM=i686   UNICODE=1 CMAKE= WINE_PACKAGE=winehq-stable:i386
       addons:
         apt:
           packages:
@@ -37,8 +34,7 @@ matrix:
             - mingw-w64-i686-dev
             - g++-mingw-w64-i686
             - gcc-mingw-w64-i686
-            - wine:i386
-    - env: PLATFORM=x86_64 UNICODE=  CMAKE=1
+    - env: PLATFORM=x86_64 UNICODE=  CMAKE=1 WINE_PACKAGE=winehq-stable:amd64
       addons:
         apt:
           packages:
@@ -46,8 +42,7 @@ matrix:
             - mingw-w64-x86-64-dev
             - g++-mingw-w64-x86-64
             - gcc-mingw-w64-x86-64
-            - wine:amd64
-    - env: PLATFORM=i686   UNICODE=  CMAKE=1
+    - env: PLATFORM=i686   UNICODE=  CMAKE=1 WINE_PACKAGE=winehq-stable:i386
       addons:
         apt:
           packages:
@@ -56,8 +51,7 @@ matrix:
             - mingw-w64-i686-dev
             - g++-mingw-w64-i686
             - gcc-mingw-w64-i686
-            - wine:i386
-    - env: PLATFORM=x86_64 UNICODE=1 CMAKE=1
+    - env: PLATFORM=x86_64 UNICODE=1 CMAKE=1 WINE_PACKAGE=winehq-stable:amd64
       addons:
         apt:
           packages:
@@ -66,8 +60,7 @@ matrix:
             - mingw-w64-x86-64-dev
             - g++-mingw-w64-x86-64
             - gcc-mingw-w64-x86-64
-            - wine:amd64
-    - env: PLATFORM=i686   UNICODE=1 CMAKE=1
+    - env: PLATFORM=i686   UNICODE=1 CMAKE=1 WINE_PACKAGE=winehq-stable:i386
       addons:
         apt:
           packages:
@@ -76,15 +69,19 @@ matrix:
             - mingw-w64-i686-dev
             - g++-mingw-w64-i686
             - gcc-mingw-w64-i686
-            - wine:i386
 
 language: cpp
+
+dist: xenial
 
 cache:
   - apt
   - ccache
 
 before_script:
+  - curl https://dl.winehq.org/wine-builds/winehq.key | sudo apt-key add -
+  - echo "deb https://dl.winehq.org/wine-builds/ubuntu/ xenial main" | sudo tee /etc/apt/sources.list.d/winehq.list
+  - sudo apt-get -y update && sudo apt-get -y install --install-recommends $WINE_PACKAGE
   - if [ ! -z "$CMAKE" ]; then cmake -DPLATFORM=$PLATFORM -DUNICODE=$UNICODE -DTESTSUITE=ON -H. -B.; fi
 
 script:

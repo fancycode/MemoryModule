@@ -1,6 +1,6 @@
 # Status available at
 # https://ci.appveyor.com/project/fancycode/memorymodule
-version: #{build}
+version: 1.0.{build}
 
 os:
   - Visual Studio 2015
