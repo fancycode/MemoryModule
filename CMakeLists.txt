@@ -26,10 +26,10 @@ if (NOT MSVC)
 endif ()
 
 if (NOT MSVC)
-    add_definitions ("-Wall")
+    add_compile_options ("-Wall")
 else ()
     # Show level 4 warnings.
-    add_definitions ("-W4")
+    add_compile_options ("-W4")
 endif ()
 
 option(UNICODE "Compile with UNICODE support" OFF)
