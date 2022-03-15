@@ -55,6 +55,9 @@ if (NOT MSVC)
     set_target_properties ("MemoryModule" PROPERTIES PREFIX "")
 endif ()
 
-add_subdirectory (example)
+option(MEMORY_MODULE_EXAMPLES "Include the MemoryModule examples" ON)
+if (MEMORY_MODULE_EXAMPLES)
+    add_subdirectory (example)
+endif ()
 
 enable_language (RC)
