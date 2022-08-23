@@ -529,7 +529,7 @@ The MemoryModule port in vcpkg is kept up to date by Microsoft team members and 
 
 1. git clone https://github.com/Microsoft/vcpkg.git
 2. cd vcpkg
-3. ./bootstrap-vcpkg.sh
+3. ./bootstrap-vcpkg.bat
 4. ./vcpkg integrate install
 5. ./vcpkg install memorymodule
 
