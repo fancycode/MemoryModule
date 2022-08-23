@@ -523,6 +523,17 @@ The latest development release can always be grabbed from Github at
 http://github.com/fancycode/MemoryModule/
 
 
+Building MemoryModule with vcpkg
+---------------------------------
+The MemoryModule port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please create an issue or pull request on the vcpkg repository. The url of vcpkg is: https://github.com/Microsoft/vcpkg . You can download and install MemoryModule using the vcpkg dependency manager:
+
+1. git clone https://github.com/Microsoft/vcpkg.git
+2. cd vcpkg
+3. ./bootstrap-vcpkg.sh
+4. ./vcpkg integrate install
+5. ./vcpkg install memorymodule
+
+
 Known issues
 -------------
 
