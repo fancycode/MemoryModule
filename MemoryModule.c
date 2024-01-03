@@ -382,6 +382,7 @@ static BOOL
 PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
 {
     unsigned char *codeBase = module->codeBase;
+    DWORD          relocation_size;
     PIMAGE_BASE_RELOCATION relocation;
 
     PIMAGE_DATA_DIRECTORY directory = GET_HEADER_DICTIONARY(module, IMAGE_DIRECTORY_ENTRY_BASERELOC);
@@ -389,11 +390,16 @@ PerformBaseRelocation(PMEMORYMODULE module, ptrdiff_t delta)
         return (delta == 0);
     }
 
+    relocation_size = directory->Size;
     relocation = (PIMAGE_BASE_RELOCATION) (codeBase + directory->VirtualAddress);
-    for (; relocation->VirtualAddress > 0; ) {
+    
+    for (;relocation_size; ) {
         DWORD i;
         unsigned char *dest = codeBase + relocation->VirtualAddress;
         unsigned short *relInfo = (unsigned short*) OffsetPointer(relocation, IMAGE_SIZEOF_BASE_RELOCATION);
+
+        relocation_size -= relocation->SizeOfBlock;
+
         for (i=0; i<((relocation->SizeOfBlock-IMAGE_SIZEOF_BASE_RELOCATION) / 2); i++, relInfo++) {
             // the upper 4 bits define the type of relocation
             int type = *relInfo >> 12;
